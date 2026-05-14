@@ -29,11 +29,22 @@ export function DeviceTable({ devices }: { devices: DeviceStatus[] }) {
         <table className="w-full">
           <thead>
             <tr className="border-b border-white/5">
-              <th className="sticky-device-col px-5 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Device</th>
-              <th className="px-5 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Type</th>
-              <th className="px-5 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Kind</th>
+              <th className="sticky-device-col px-5 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                Device
+              </th>
+              <th className="px-5 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                Type
+              </th>
+              <th className="px-5 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                Kind
+              </th>
               {extraKeys.map((key) => (
-                <th key={key} className="px-5 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{key}</th>
+                <th
+                  key={key}
+                  className="px-5 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider"
+                >
+                  {key}
+                </th>
               ))}
             </tr>
           </thead>
@@ -50,20 +61,34 @@ export function DeviceTable({ devices }: { devices: DeviceStatus[] }) {
                 >
                   <td className="sticky-device-col px-5 py-3.5">
                     <div className="flex items-center gap-3">
-                      <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${iconBg}`}>
-                        <Icon className={`h-4 w-4 ${iconColor}`} strokeWidth={1.8} />
+                      <div
+                        className={`flex h-8 w-8 items-center justify-center rounded-lg ${iconBg}`}
+                      >
+                        <Icon
+                          className={`h-4 w-4 ${iconColor}`}
+                          strokeWidth={1.8}
+                        />
                       </div>
-                      <span className="font-medium text-slate-100 text-sm whitespace-nowrap">{device.name}</span>
+                      <span className="font-medium text-slate-100 text-sm whitespace-nowrap">
+                        {device.name}
+                      </span>
                     </div>
                   </td>
-                  <td className="px-5 py-3.5 text-sm text-slate-400">{device.type}</td>
+                  <td className="px-5 py-3.5 text-sm text-slate-400">
+                    {device.type}
+                  </td>
                   <td className="px-5 py-3.5">
-                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${device.kind === "physical" ? "badge-physical" : "badge-infrared"}`}>
+                    <span
+                      className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${device.kind === "physical" ? "badge-physical" : "badge-infrared"}`}
+                    >
                       {device.kind}
                     </span>
                   </td>
                   {extraKeys.map((key) => (
-                    <td key={key} className="px-5 py-3.5">
+                    <td
+                      key={key}
+                      className="px-5 py-3.5"
+                    >
                       {device.error ? (
                         <div className="flex items-center gap-1.5">
                           <AlertCircle className="h-3.5 w-3.5 text-red-400" />

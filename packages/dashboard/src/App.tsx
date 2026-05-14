@@ -10,7 +10,8 @@ const STORAGE_KEY = "timnoya-view-mode"
 function loadViewMode(): ViewMode {
   try {
     const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored === "card" || stored === "table") return stored
+    if (stored === "card" || stored === "table" || stored === "compact")
+      return stored
   } catch {}
   return "card"
 }

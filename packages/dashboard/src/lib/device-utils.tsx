@@ -1,5 +1,17 @@
 import type { LucideIcon } from "lucide-react"
-import { Blinds, Bot, Plug, Radio, Router, Thermometer } from "lucide-react"
+import {
+  Battery,
+  Blinds,
+  Bot,
+  Circle,
+  Droplets,
+  Plug,
+  Power,
+  Radio,
+  Router,
+  Sun,
+  Thermometer,
+} from "lucide-react"
 import type React from "react"
 import { match, P } from "ts-pattern"
 
@@ -61,7 +73,7 @@ function BatteryIndicator({ value }: { value: number }) {
 
   return (
     <div className="flex items-center gap-2">
-      <div className="h-2 w-20 rounded-full bar-bg">
+      <div className="h-2 w-14 rounded-full bar-bg sm:w-20">
         <div
           className={`h-full rounded-full ${color} ${glow} transition-all duration-500`}
           style={{ width: `${value}%` }}
@@ -76,7 +88,7 @@ function PositionIndicator({ value }: { value: string | number }) {
   const num = typeof value === "string" ? Number(value) : value
   return (
     <div className="flex items-center gap-2">
-      <div className="h-2 w-20 rounded-full bar-bg">
+      <div className="h-2 w-14 rounded-full bar-bg sm:w-20">
         <div
           className="h-full rounded-full bg-linear-to-r from-blue-500 to-cyan-400 shadow-[0_0_6px_rgba(6,182,212,0.4)] transition-all duration-500"
           style={{ width: `${num}%` }}
@@ -121,4 +133,92 @@ export function formatValue(key: string, value: unknown): React.ReactNode {
     .otherwise(({ value: v }) => (
       <span className="text-sm text-slate-300">{String(v)}</span>
     ))
+}
+
+type StatusIconMapping = {
+  icon: LucideIcon
+  color: string
+}
+
+function statusIconMapping(
+  key: string,
+  value: unknown,
+): StatusIconMapping | null {
+  return match<{ key: string; value: unknown }, StatusIconMapping | null>({
+    key,
+    value,
+  })
+    .with(
+      { key: "battery", value: P.when((v) => typeof v === "number") },
+      ({ value: v }) => ({
+        icon: Battery,
+        color:
+          (v as number) > 60
+            ? "text-emerald-400"
+            : (v as number) > 20
+              ? "text-amber-400"
+              : "text-red-400",
+      }),
+    )
+    .with(
+      { key: P.when((k) => k.includes("temperature") || k.includes("temp")) },
+      () => ({
+        icon: Thermometer,
+        color: "text-amber-400",
+      }),
+    )
+    .with({ key: P.when((k) => k.includes("humidity")) }, () => ({
+      icon: Droplets,
+      color: "text-blue-400",
+    }))
+    .with(
+      { key: P.when((k) => k.includes("light") || k.includes("brightness")) },
+      () => ({
+        icon: Sun,
+        color: "text-yellow-400",
+      }),
+    )
+    .with(
+      { key: P.when((k) => k.includes("power") || k.includes("turnOn")) },
+      ({ value: v }) => ({
+        icon: Power,
+        color: v ? "text-emerald-400" : "text-slate-500",
+      }),
+    )
+    .with({ value: P.when((v) => typeof v === "boolean") }, ({ value: v }) => ({
+      icon: Circle,
+      color: v ? "text-emerald-400" : "text-slate-600",
+    }))
+    .otherwise(() => null)
+}
+
+export function compactStatusIcons(
+  device: Record<string, unknown>,
+  knownFields: Set<string>,
+): React.ReactNode {
+  const entries = Object.entries(device).filter(
+    ([k]) => !knownFields.has(k) && device[k] !== undefined,
+  )
+  const icons = entries
+    .map(([key, value]) => {
+      const mapping = statusIconMapping(key, value)
+      if (!mapping) return null
+      const Icon = mapping.icon
+      return (
+        <span
+          key={key}
+          title={`${key}: ${String(value)}`}
+        >
+          <Icon
+            className={`h-3 w-3 ${mapping.color}`}
+            strokeWidth={2.5}
+          />
+        </span>
+      )
+    })
+    .filter(Boolean)
+
+  return icons.length > 0 ? (
+    <div className="flex items-center gap-1.5">{icons}</div>
+  ) : null
 }

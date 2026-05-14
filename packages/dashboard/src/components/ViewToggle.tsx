@@ -1,6 +1,6 @@
-import { LayoutGrid, Table } from "lucide-react"
+import { Grid2x2, LayoutGrid, Table } from "lucide-react"
 
-export type ViewMode = "card" | "table"
+export type ViewMode = "card" | "table" | "compact"
 
 type ViewToggleProps = {
   value: ViewMode
@@ -25,6 +25,14 @@ export function ViewToggle({ value, onChange }: ViewToggleProps) {
         title="Table view"
       >
         <Table className="h-4 w-4" />
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange("compact")}
+        className={`flex items-center justify-center rounded-lg px-2.5 py-1.5 transition-all duration-200 ${value === "compact" ? "bg-white/10 text-white shadow-xs" : "text-slate-500 hover:text-slate-300"}`}
+        title="Compact view"
+      >
+        <Grid2x2 className="h-4 w-4" />
       </button>
     </div>
   )

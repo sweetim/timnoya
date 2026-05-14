@@ -17,7 +17,7 @@ export function DeviceCard({ device }: { device: DeviceStatus }) {
   )
 
   return (
-    <div className="glass-card rounded-2xl p-5 transition-all duration-300 group">
+    <div className="glass-card rounded-2xl p-4 sm:p-5 transition-all duration-300 group">
       <div className="mb-4 flex items-start justify-between">
         <div className="flex items-center gap-3">
           <div
@@ -54,7 +54,7 @@ export function DeviceCard({ device }: { device: DeviceStatus }) {
           {extraEntries.map(([key, value]) => (
             <div
               key={key}
-              className="flex items-center justify-between gap-4"
+              className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1"
             >
               <dt className="text-xs font-medium text-slate-500 uppercase tracking-wider">
                 {key}

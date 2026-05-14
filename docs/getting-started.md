@@ -10,12 +10,16 @@
 
 | Variable | Package | Required | Description |
 |----------|---------|----------|-------------|
+| Variable | Package | Required | Description |
+|----------|---------|----------|-------------|
 | `SWITCHBOT_TOKEN` | api-server | Yes | SwitchBot API token |
 | `SWITCHBOT_SECRET_KEY` | api-server | Yes | SwitchBot API secret key for HMAC signing |
 | `PORT` | api-server | No | API server port (default: 3000) |
 | `API_BASE_URL` | dashboard | No | API server URL for proxy (default: `http://localhost:3000`) |
 
-These are stored in `packages/api-server/.env` (gitignored).
+
+
+These are stored in `.env` at the project root (gitignored).
 
 ## Setup
 
@@ -23,11 +27,10 @@ These are stored in `packages/api-server/.env` (gitignored).
 bun install
 ```
 
-Create `packages/api-server/.env` with your SwitchBot credentials:
+Copy `.env.example` to `.env` and fill in your SwitchBot credentials:
 
-```
-SWITCHBOT_TOKEN=<your-token>
-SWITCHBOT_SECRET_KEY=<your-secret-key>
+```bash
+cp .env.example .env
 ```
 
 ## Running

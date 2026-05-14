@@ -24,14 +24,18 @@
 | `packages/dashboard/src/index.html` | HTML entry point for the dashboard SPA |
 | `packages/dashboard/src/frontend.tsx` | React DOM mount point (StrictMode + HMR-aware root) |
 | `packages/dashboard/src/index.css` | Global styles — Tailwind v4 import, custom theme, glass/shimmer/badge utilities |
-| `packages/dashboard/src/App.tsx` | Dashboard shell — fetches `/api/devices/status`, renders Header + DeviceGrid, auto-refreshes every 30s |
-| `packages/dashboard/src/types.ts` | Shared types — `DeviceStatus`, `StatusResponse`, `KNOWN_FIELDS` set |
+| `packages/dashboard/src/App.tsx` | Dashboard shell — fetches `/api/devices/status`, renders Header + DeviceGrid, auto-refreshes every 30s, persists view mode in localStorage |
+| `packages/dashboard/src/types.ts` | Shared types — `DeviceStatus` (with `kind` field), `StatusResponse`, `KNOWN_FIELDS` set (includes `deviceId`, `hubDeviceId`) |
 | `packages/dashboard/src/logo.svg` | Favicon SVG |
 | `packages/dashboard/src/components/DeviceCard.tsx` | Single device card — icon, name, type badge, dynamic status fields |
-| `packages/dashboard/src/components/DeviceGrid.tsx` | Responsive grid of DeviceCards with loading skeletons and empty/error states |
+| `packages/dashboard/src/components/DeviceGrid.tsx` | Main content area — SummaryCard, ViewToggle, renders card/table/compact views with loading skeletons and empty/error states |
+| `packages/dashboard/src/components/DeviceTable.tsx` | Table view for devices — dynamic columns for extra status fields |
 | `packages/dashboard/src/components/Header.tsx` | Sticky header — logo, title, last-refresh timestamp, refresh button |
-| `packages/dashboard/src/components/SkeletonCard.tsx` | Shimmer loading placeholder for device cards |
-| `packages/dashboard/src/lib/device-utils.tsx` | Device type helpers — icon/color/bg mapping, formatValue with BatteryIndicator, PositionIndicator, BooleanBadge |
+| `packages/dashboard/src/components/SkeletonCard.tsx` | Shimmer loading placeholder for card view |
+| `packages/dashboard/src/components/SkeletonTable.tsx` | Shimmer loading placeholder for table view |
+| `packages/dashboard/src/components/SummaryCard.tsx` | Summary stats — total device count and battery status list |
+| `packages/dashboard/src/components/ViewToggle.tsx` | View mode toggle — card/table/compact switcher |
+| `packages/dashboard/src/lib/device-utils.tsx` | Device type helpers — icon/color/bg mapping, formatValue, BatteryIndicator, PositionIndicator, BooleanBadge, compactStatusIcons |
 
 ## Package Structure
 
@@ -56,17 +60,22 @@ packages/dashboard/
     index.html               → SPA entry (imports frontend.tsx)
     frontend.tsx             → React DOM createRoot mount (HMR-aware)
     index.css                → Tailwind v4, custom theme, glass/shimmer/badge styles
-    App.tsx                  → Dashboard shell — data fetching, auto-refresh
-    types.ts                 → DeviceStatus, StatusResponse, KNOWN_FIELDS
+    App.tsx                  → Dashboard shell — data fetching, auto-refresh, view mode persistence
+    types.ts                 → DeviceStatus (with kind), StatusResponse, KNOWN_FIELDS
     logo.svg                 → Favicon
     components/
       Header.tsx             → Sticky header with refresh button
-      DeviceGrid.tsx         → Responsive card grid with loading/empty/error states
+      DeviceGrid.tsx         → Main content — SummaryCard, ViewToggle, card/table/compact views
       DeviceCard.tsx         → Device card with icon, badge, dynamic status fields
-      SkeletonCard.tsx       → Shimmer loading placeholder
+      DeviceTable.tsx        → Table view with dynamic columns for extra status fields
+      SummaryCard.tsx        → Total device count and battery status list
+      ViewToggle.tsx         → Card/table/compact view mode toggle
+      SkeletonCard.tsx       → Shimmer loading placeholder (card)
+      SkeletonTable.tsx      → Shimmer loading placeholder (table)
     lib/
       device-utils.tsx       → Icon/color mapping (ts-pattern), formatValue with
-                               BatteryIndicator, PositionIndicator, BooleanBadge
+                               BatteryIndicator, PositionIndicator, BooleanBadge,
+                               compactStatusIcons
 ```
 
 ## Key Dependencies

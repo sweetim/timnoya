@@ -10,8 +10,6 @@
 
 | Variable | Package | Required | Description |
 |----------|---------|----------|-------------|
-| Variable | Package | Required | Description |
-|----------|---------|----------|-------------|
 | `SWITCHBOT_TOKEN` | api-server | Yes | SwitchBot API token |
 | `SWITCHBOT_SECRET_KEY` | api-server | Yes | SwitchBot API secret key for HMAC signing |
 | `PORT` | api-server | No | API server port (default: 3000) |

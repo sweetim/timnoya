@@ -1,0 +1,26 @@
+services:
+  api:
+    build:
+      context: .
+      target: api
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD", "bun", "-e", "await fetch('http://localhost:3000/devices')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  dashboard:
+    build:
+      context: .
+      target: dashboard
+    ports:
+      - "3001:3001"
+    environment:
+      - API_BASE_URL=http://api:3000
+    depends_on:
+      api:
+        condition: service_healthy

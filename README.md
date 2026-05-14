@@ -2,37 +2,17 @@
 
 Bun workspace for SwitchBot device monitoring via an ElysiaJS API server.
 
-## Setup
+## Quick Start
 
 ```bash
 bun install
+cp .env.example .env
 ```
-
-Create `.env` with your SwitchBot credentials:
-```
-SWITCHBOT_TOKEN=your_token
-SWITCHBOT_SECRET_KEY=your_secret
-```
-
-## Running
 
 ```bash
-# API server
-bun run api:start          # start (default port 3000)
-bun run api:dev            # dev mode with watch
-
-# Dashboard
-bun run dashboard:start    # start
-bun run dashboard:dev      # dev mode with HMR
+bun run api:dev
+bun run dashboard:dev
 ```
-
-## API Endpoints
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/devices` | List all SwitchBot devices |
-| GET | `/devices/status` | Status of all devices |
-| GET | `/devices/:deviceId/status` | Status of a single device |
 
 ## Workspace Packages
 
@@ -41,4 +21,16 @@ bun run dashboard:dev      # dev mode with HMR
 | `packages/api-server` | ElysiaJS HTTP API server for SwitchBot device status |
 | `packages/dashboard` | React dashboard with TailwindCSS v4, served via Bun |
 
-This project was created using `bun init` in bun v1.3.12. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.
+## Docker
+
+Multi-stage production build. Dependencies are installed in a shared base stage and cached across rebuilds.
+
+```bash
+docker compose up --build
+```
+
+The API runs on `http://localhost:3000` and the dashboard on `http://localhost:3001`.
+
+## Documentation
+
+See [docs/](./docs/) for full documentation.

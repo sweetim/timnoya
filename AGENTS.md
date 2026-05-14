@@ -66,16 +66,12 @@ work") require constant clarification.
 
 **When you change code, update the corresponding docs.**
 
-- If you add, remove, or rename a source file, update the file map in `docs/`.
-- If you add, remove, or change a command, endpoint, or export, update the
-  documented API surface.
+- If you add, remove, or rename a source file, update the file map in `docs/architecture.md`.
+- If you add, remove, or change a command, endpoint, or export, update `docs/api-routes.md`.
 - If you add or remove a dependency, update the documented dependency list.
-- If you add or change an environment variable, update the documented env var
-  list.
-- If you add, remove, or modify a type or schema, update the documented type
-  definitions.
-- If you change an execution flow or architecture, update the documented flow
-  description.
+- If you add or change an environment variable, update `docs/getting-started.md`.
+- If you add, remove, or modify a type or schema, update `docs/switchbot-api.md`.
+- If you change an execution flow or architecture, update `docs/architecture.md`.
 
 The rule: every implementation change must include a corresponding doc change.
 Don't leave docs stale.

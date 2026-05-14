@@ -48,7 +48,7 @@ export function deviceIconBg(type: string): string {
     .otherwise(() => "bg-slate-500/10")
 }
 
-function BatteryIndicator({ value }: { value: number }) {
+export function BatteryIndicator({ value }: { value: number }) {
   const color = match(value)
     .with(
       P.when((v) => v > 60),

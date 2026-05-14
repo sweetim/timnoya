@@ -1,17 +1,18 @@
 import { Radio, WifiOff } from "lucide-react"
-import type { DeviceStatus } from "@/types"
-import { KNOWN_FIELDS } from "@/types"
 import {
+  compactStatusIcons,
   deviceIcon,
   deviceIconBg,
   deviceIconColor,
-  compactStatusIcons,
   formatValue,
 } from "@/lib/device-utils"
+import type { DeviceStatus } from "@/types"
+import { KNOWN_FIELDS } from "@/types"
 import { DeviceCard } from "./DeviceCard"
 import { DeviceTable } from "./DeviceTable"
 import { SkeletonCard } from "./SkeletonCard"
 import { SkeletonTable } from "./SkeletonTable"
+import { SummaryCard } from "./SummaryCard"
 import type { ViewMode } from "./ViewToggle"
 import { ViewToggle } from "./ViewToggle"
 
@@ -43,13 +44,13 @@ export function DeviceGrid({
       )}
 
       {!error && !loading && devices.length > 0 && (
-        <div className="mb-6 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="h-2 w-2 rounded-full bg-emerald-500 glow-green" />
-            <span className="text-xs text-slate-500">
-              {devices.length} devices connected
-            </span>
-          </div>
+        <div className="mb-6">
+          <SummaryCard devices={devices} />
+        </div>
+      )}
+
+      {!error && !loading && devices.length > 0 && (
+        <div className="mb-6 flex items-center justify-end">
           <ViewToggle
             value={viewMode}
             onChange={onViewModeChange}

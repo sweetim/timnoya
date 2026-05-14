@@ -1,13 +1,13 @@
-import { Radio, WifiOff } from "lucide-react";
-import type { DeviceStatus } from "@/types";
-import { DeviceCard } from "./DeviceCard";
-import { SkeletonCard } from "./SkeletonCard";
+import { Radio, WifiOff } from "lucide-react"
+import type { DeviceStatus } from "@/types"
+import { DeviceCard } from "./DeviceCard"
+import { SkeletonCard } from "./SkeletonCard"
 
 type DeviceGridProps = {
-  devices: DeviceStatus[];
-  loading: boolean;
-  error: string | null;
-};
+  devices: DeviceStatus[]
+  loading: boolean
+  error: string | null
+}
 
 export function DeviceGrid({ devices, loading, error }: DeviceGridProps) {
   return (
@@ -25,29 +25,36 @@ export function DeviceGrid({ devices, loading, error }: DeviceGridProps) {
       {!error && !loading && devices.length > 0 && (
         <div className="mb-6 flex items-center gap-2">
           <div className="h-2 w-2 rounded-full bg-emerald-500 glow-green" />
-          <span className="text-xs text-slate-500">{devices.length} devices connected</span>
+          <span className="text-xs text-slate-500">
+            {devices.length} devices connected
+          </span>
         </div>
       )}
 
       {loading ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <SkeletonCard key={i} />
+          {Array.from({ length: 3 }, (_, i) => `skeleton-${i}`).map((key) => (
+            <SkeletonCard key={key} />
           ))}
         </div>
       ) : devices.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 text-slate-600">
           <Radio className="h-12 w-12 mb-4 text-slate-700" />
           <p className="text-lg font-medium text-slate-500">No devices found</p>
-          <p className="text-sm text-slate-600 mt-1">Check your SwitchBot hub connection</p>
+          <p className="text-sm text-slate-600 mt-1">
+            Check your SwitchBot hub connection
+          </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {devices.map((device) => (
-            <DeviceCard key={device.name} device={device} />
+            <DeviceCard
+              key={device.name}
+              device={device}
+            />
           ))}
         </div>
       )}
     </main>
-  );
+  )
 }

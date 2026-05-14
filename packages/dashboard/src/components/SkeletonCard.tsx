@@ -17,5 +17,5 @@ export function SkeletonCard() {
         <div className="h-4 w-1/2 rounded shimmer" />
       </div>
     </div>
-  );
+  )
 }

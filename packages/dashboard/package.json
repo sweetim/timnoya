@@ -13,7 +13,8 @@
     "lucide-react": "^1.14.0",
     "react": "^19",
     "react-dom": "^19",
-    "tailwindcss": "^4.3.0"
+    "tailwindcss": "^4.3.0",
+    "ts-pattern": "^5.0.0"
   },
   "devDependencies": {
     "@types/react": "^19",

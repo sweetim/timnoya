@@ -1,54 +1,79 @@
-import type { LucideIcon } from "lucide-react";
-import { Blinds, Thermometer, Bot, Plug, Router, Radio } from "lucide-react";
-import React from "react";
+import type { LucideIcon } from "lucide-react"
+import { Blinds, Bot, Plug, Radio, Router, Thermometer } from "lucide-react"
+import type React from "react"
+import { match, P } from "ts-pattern"
+
+const deviceTypePattern = (substring: string) =>
+  P.when((s: string) => s.includes(substring))
 
 export function deviceIcon(type: string): LucideIcon {
-  const lower = type.toLowerCase();
-  if (lower.includes("curtain")) return Blinds;
-  if (lower.includes("meter")) return Thermometer;
-  if (lower.includes("bot")) return Bot;
-  if (lower.includes("plug")) return Plug;
-  if (lower.includes("hub")) return Router;
-  return Radio;
+  return match(type.toLowerCase())
+    .with(deviceTypePattern("curtain"), () => Blinds)
+    .with(deviceTypePattern("meter"), () => Thermometer)
+    .with(deviceTypePattern("bot"), () => Bot)
+    .with(deviceTypePattern("plug"), () => Plug)
+    .with(deviceTypePattern("hub"), () => Router)
+    .otherwise(() => Radio)
 }
 
 export function deviceIconColor(type: string): string {
-  const lower = type.toLowerCase();
-  if (lower.includes("curtain")) return "text-blue-400";
-  if (lower.includes("meter")) return "text-amber-400";
-  if (lower.includes("bot")) return "text-purple-400";
-  if (lower.includes("plug")) return "text-emerald-400";
-  if (lower.includes("hub")) return "text-cyan-400";
-  return "text-slate-400";
+  return match(type.toLowerCase())
+    .with(deviceTypePattern("curtain"), () => "text-blue-400")
+    .with(deviceTypePattern("meter"), () => "text-amber-400")
+    .with(deviceTypePattern("bot"), () => "text-purple-400")
+    .with(deviceTypePattern("plug"), () => "text-emerald-400")
+    .with(deviceTypePattern("hub"), () => "text-cyan-400")
+    .otherwise(() => "text-slate-400")
 }
 
 export function deviceIconBg(type: string): string {
-  const lower = type.toLowerCase();
-  if (lower.includes("curtain")) return "bg-blue-500/10";
-  if (lower.includes("meter")) return "bg-amber-500/10";
-  if (lower.includes("bot")) return "bg-purple-500/10";
-  if (lower.includes("plug")) return "bg-emerald-500/10";
-  if (lower.includes("hub")) return "bg-cyan-500/10";
-  return "bg-slate-500/10";
+  return match(type.toLowerCase())
+    .with(deviceTypePattern("curtain"), () => "bg-blue-500/10")
+    .with(deviceTypePattern("meter"), () => "bg-amber-500/10")
+    .with(deviceTypePattern("bot"), () => "bg-purple-500/10")
+    .with(deviceTypePattern("plug"), () => "bg-emerald-500/10")
+    .with(deviceTypePattern("hub"), () => "bg-cyan-500/10")
+    .otherwise(() => "bg-slate-500/10")
 }
 
 function BatteryIndicator({ value }: { value: number }) {
-  const color =
-    value > 60 ? "bg-emerald-500" : value > 20 ? "bg-amber-500" : "bg-red-500";
-  const glow =
-    value > 60 ? "shadow-[0_0_6px_rgba(34,197,94,0.4)]" : value > 20 ? "" : "shadow-[0_0_6px_rgba(239,68,68,0.4)]";
+  const color = match(value)
+    .with(
+      P.when((v) => v > 60),
+      () => "bg-emerald-500",
+    )
+    .with(
+      P.when((v) => v > 20),
+      () => "bg-amber-500",
+    )
+    .otherwise(() => "bg-red-500")
+
+  const glow = match(value)
+    .with(
+      P.when((v) => v > 60),
+      () => "shadow-[0_0_6px_rgba(34,197,94,0.4)]",
+    )
+    .with(
+      P.when((v) => v > 20),
+      () => "",
+    )
+    .otherwise(() => "shadow-[0_0_6px_rgba(239,68,68,0.4)]")
+
   return (
     <div className="flex items-center gap-2">
       <div className="h-2 w-20 rounded-full bar-bg">
-        <div className={`h-full rounded-full ${color} ${glow} transition-all duration-500`} style={{ width: `${value}%` }} />
+        <div
+          className={`h-full rounded-full ${color} ${glow} transition-all duration-500`}
+          style={{ width: `${value}%` }}
+        />
       </div>
       <span className="text-xs font-medium text-slate-400">{value}%</span>
     </div>
-  );
+  )
 }
 
 function PositionIndicator({ value }: { value: string | number }) {
-  const num = typeof value === "string" ? Number(value) : value;
+  const num = typeof value === "string" ? Number(value) : value
   return (
     <div className="flex items-center gap-2">
       <div className="h-2 w-20 rounded-full bar-bg">
@@ -59,26 +84,41 @@ function PositionIndicator({ value }: { value: string | number }) {
       </div>
       <span className="text-xs font-medium text-slate-400">{num}%</span>
     </div>
-  );
+  )
 }
 
 function BooleanBadge({ value }: { value: boolean }) {
+  const style = match(value)
+    .with(
+      true,
+      () => "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20",
+    )
+    .otherwise(
+      () => "bg-slate-700/50 text-slate-400 border border-slate-600/30",
+    )
+
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-        value
-          ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20"
-          : "bg-slate-700/50 text-slate-400 border border-slate-600/30"
-      }`}
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${style}`}
     >
       {value ? "Yes" : "No"}
     </span>
-  );
+  )
 }
 
 export function formatValue(key: string, value: unknown): React.ReactNode {
-  if (typeof value === "boolean") return <BooleanBadge value={value} />;
-  if (key === "battery" && typeof value === "number") return <BatteryIndicator value={value} />;
-  if (key === "slidePosition") return <PositionIndicator value={value as string | number} />;
-  return <span className="text-sm text-slate-300">{String(value)}</span>;
+  return match({ key, value })
+    .with({ value: P.when((v) => typeof v === "boolean") }, ({ value: v }) => (
+      <BooleanBadge value={v as boolean} />
+    ))
+    .with(
+      { key: "battery", value: P.when((v) => typeof v === "number") },
+      ({ value: v }) => <BatteryIndicator value={v as number} />,
+    )
+    .with({ key: "slidePosition" }, ({ value: v }) => (
+      <PositionIndicator value={v as string | number} />
+    ))
+    .otherwise(({ value: v }) => (
+      <span className="text-sm text-slate-300">{String(v)}</span>
+    ))
 }

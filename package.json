@@ -9,9 +9,13 @@
     "api:dev": "bun run --filter @timnoya/api-server dev",
     "api:start": "bun run --filter @timnoya/api-server start",
     "dashboard:dev": "bun run --filter @timnoya/dashboard dev",
-    "dashboard:start": "bun run --filter @timnoya/dashboard start"
+    "dashboard:start": "bun run --filter @timnoya/dashboard start",
+    "lint": "biome lint .",
+    "format": "biome format . --write",
+    "check": "biome check ."
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.4.15",
     "@types/bun": "latest"
   },
   "peerDependencies": {

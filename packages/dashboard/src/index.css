@@ -71,6 +71,14 @@ body {
   100% { background-position: -200% 0; }
 }
 
+.sticky-device-col {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: rgba(18, 18, 26, 0.95);
+  backdrop-filter: blur(12px);
+}
+
 .badge-physical {
   background: rgba(59, 130, 246, 0.15);
   color: #60a5fa;

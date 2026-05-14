@@ -1,15 +1,21 @@
 import { Radio, WifiOff } from "lucide-react"
 import type { DeviceStatus } from "@/types"
 import { DeviceCard } from "./DeviceCard"
+import { DeviceTable } from "./DeviceTable"
 import { SkeletonCard } from "./SkeletonCard"
+import { SkeletonTable } from "./SkeletonTable"
+import type { ViewMode } from "./ViewToggle"
+import { ViewToggle } from "./ViewToggle"
 
 type DeviceGridProps = {
   devices: DeviceStatus[]
   loading: boolean
   error: string | null
+  viewMode: ViewMode
+  onViewModeChange: (mode: ViewMode) => void
 }
 
-export function DeviceGrid({ devices, loading, error }: DeviceGridProps) {
+export function DeviceGrid({ devices, loading, error, viewMode, onViewModeChange }: DeviceGridProps) {
   return (
     <main className="mx-auto max-w-7xl px-6 py-8">
       {error && (
@@ -23,20 +29,27 @@ export function DeviceGrid({ devices, loading, error }: DeviceGridProps) {
       )}
 
       {!error && !loading && devices.length > 0 && (
-        <div className="mb-6 flex items-center gap-2">
-          <div className="h-2 w-2 rounded-full bg-emerald-500 glow-green" />
-          <span className="text-xs text-slate-500">
-            {devices.length} devices connected
-          </span>
+        <div className="mb-6 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="h-2 w-2 rounded-full bg-emerald-500 glow-green" />
+            <span className="text-xs text-slate-500">
+              {devices.length} devices connected
+            </span>
+          </div>
+          <ViewToggle value={viewMode} onChange={onViewModeChange} />
         </div>
       )}
 
       {loading ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 3 }, (_, i) => `skeleton-${i}`).map((key) => (
-            <SkeletonCard key={key} />
-          ))}
-        </div>
+        viewMode === "card" ? (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 3 }, (_, i) => `skeleton-${i}`).map((key) => (
+              <SkeletonCard key={key} />
+            ))}
+          </div>
+        ) : (
+          <SkeletonTable />
+        )
       ) : devices.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 text-slate-600">
           <Radio className="h-12 w-12 mb-4 text-slate-700" />
@@ -45,7 +58,7 @@ export function DeviceGrid({ devices, loading, error }: DeviceGridProps) {
             Check your SwitchBot hub connection
           </p>
         </div>
-      ) : (
+      ) : viewMode === "card" ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {devices.map((device) => (
             <DeviceCard
@@ -54,6 +67,8 @@ export function DeviceGrid({ devices, loading, error }: DeviceGridProps) {
             />
           ))}
         </div>
+      ) : (
+        <DeviceTable devices={devices} />
       )}
     </main>
   )

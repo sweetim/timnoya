@@ -1,3 +1,13 @@
+## 0. Read the Docs First
+
+**Always start by reading `docs/README.md` to understand the project structure.**
+
+Before making any changes:
+
+- Read `docs/README.md` to discover available documentation.
+- Read `docs/architecture.md` for the file map and module structure.
+- Consult relevant docs before modifying code you're unfamiliar with.
+
 ## 1. Think Before Coding
 
 **Don't assume. Don't hide confusion. Surface tradeoffs.**

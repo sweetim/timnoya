@@ -8,27 +8,56 @@
 
 ## Environment Variables
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `SWITCHBOT_TOKEN` | Yes | SwitchBot API token |
-| `SWITCHBOT_SECRET_KEY` | Yes | SwitchBot API secret key for HMAC signing |
-| `PORT` | No | API server port (default: 3000) |
+| Variable | Package | Required | Description |
+|----------|---------|----------|-------------|
+| `SWITCHBOT_TOKEN` | api-server | Yes | SwitchBot API token |
+| `SWITCHBOT_SECRET_KEY` | api-server | Yes | SwitchBot API secret key for HMAC signing |
+| `PORT` | api-server | No | API server port (default: 3000) |
+| `API_BASE_URL` | dashboard | No | API server URL for proxy (default: `http://localhost:3000`) |
 
-These are stored in `.env` (gitignored).
+These are stored in `packages/api-server/.env` (gitignored).
 
 ## Setup
 
 ```bash
 bun install
-cp .env.example .env
+```
+
+Create `packages/api-server/.env` with your SwitchBot credentials:
+
+```
+SWITCHBOT_TOKEN=<your-token>
+SWITCHBOT_SECRET_KEY=<your-secret-key>
 ```
 
 ## Running
 
 ```bash
-bun run api:start
-bun run api:dev
+bun run api:dev          # API server with --watch
+bun run api:start        # API server (production)
 
-bun run dashboard:start
-bun run dashboard:dev
+bun run dashboard:dev    # Dashboard with HMR
+bun run dashboard:start  # Dashboard (production)
+```
+
+The API server runs on port 3000, the dashboard on port 3001. The dashboard proxies `/api/*` requests to the API server.
+
+## Linting & Formatting
+
+```bash
+bun run lint             # Biome lint
+bun run format           # Biome format --write
+bun run check            # Biome check (lint + format)
+```
+
+## Docker
+
+Each package has a Dockerfile:
+
+```bash
+# API server
+docker build -f packages/api-server/Dockerfile .
+
+# Dashboard
+docker build -f packages/dashboard/Dockerfile .
 ```

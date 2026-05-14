@@ -4,7 +4,7 @@ import type React from "react"
 import { match, P } from "ts-pattern"
 
 const deviceTypePattern = (substring: string) =>
-  P.when((s: string) => s.includes(substring))
+  P.when((s): s is string => typeof s === "string" && s.includes(substring))
 
 export function deviceIcon(type: string): LucideIcon {
   return match(type.toLowerCase())
@@ -78,7 +78,7 @@ function PositionIndicator({ value }: { value: string | number }) {
     <div className="flex items-center gap-2">
       <div className="h-2 w-20 rounded-full bar-bg">
         <div
-          className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 shadow-[0_0_6px_rgba(6,182,212,0.4)] transition-all duration-500"
+          className="h-full rounded-full bg-linear-to-r from-blue-500 to-cyan-400 shadow-[0_0_6px_rgba(6,182,212,0.4)] transition-all duration-500"
           style={{ width: `${num}%` }}
         />
       </div>

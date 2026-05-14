@@ -40,7 +40,6 @@ export function Header({ lastRefresh, refreshing, onRefresh }: HeaderProps) {
             <h1 className="text-lg font-bold text-white tracking-tight">
               timnoya
             </h1>
-            <p className="text-xs text-slate-500">Smart Home Dashboard</p>
           </div>
         </div>
         <div className="flex items-center gap-4">

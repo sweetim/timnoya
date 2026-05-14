@@ -7,7 +7,8 @@ export function SkeletonTable({ columnCount = 4 }: { columnCount?: number }) {
             <tr className="border-b border-white/5">
               {Array.from({ length: columnCount }, (_, i) => (
                 <th
-                  key={i}
+                  // biome-ignore lint/suspicious/noArrayIndexKey: skeleton columns are static
+                  key={`col-${i}`}
                   className="px-5 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider"
                 >
                   <div className="h-3 w-14 rounded shimmer" />
@@ -18,12 +19,14 @@ export function SkeletonTable({ columnCount = 4 }: { columnCount?: number }) {
           <tbody>
             {Array.from({ length: 3 }, (_, i) => (
               <tr
-                key={i}
+                // biome-ignore lint/suspicious/noArrayIndexKey: skeleton rows are static
+                key={`row-${i}`}
                 className="border-b border-white/5 last:border-0"
               >
                 {Array.from({ length: columnCount }, (_, j) => (
                   <td
-                    key={j}
+                    // biome-ignore lint/suspicious/noArrayIndexKey: skeleton cells are static
+                    key={`cell-${i}-${j}`}
                     className="px-5 py-3.5"
                   >
                     <div className="h-4 w-20 rounded shimmer" />

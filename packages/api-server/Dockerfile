@@ -1,0 +1,9 @@
+FROM oven/bun:1 AS base
+WORKDIR /app
+COPY package.json bun.lock ./
+COPY packages/api-server/package.json packages/api-server/package.json
+RUN bun install --frozen-lockfile
+
+FROM base
+COPY packages/api-server/ packages/api-server/
+CMD ["bun", "run", "--filter", "@timnoya/api-server", "start"]

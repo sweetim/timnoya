@@ -1,0 +1,16 @@
+{
+  "name": "@timnoya/api-server",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "start": "bun run src/index.ts"
+  },
+  "dependencies": {
+    "elysia": "^1.3"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}

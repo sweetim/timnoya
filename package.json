@@ -1,0 +1,20 @@
+{
+  "name": "timnoya",
+  "type": "module",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "api:dev": "bun run --filter @timnoya/api-server dev",
+    "api:start": "bun run --filter @timnoya/api-server start",
+    "dashboard:dev": "bun run --filter @timnoya/dashboard dev",
+    "dashboard:start": "bun run --filter @timnoya/dashboard start"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}

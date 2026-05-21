@@ -6,6 +6,7 @@ RUN bun install --production && rm -rf node_modules/.bun
 FROM oven/bun:1-alpine
 WORKDIR /app
 COPY --from=install /app/node_modules node_modules
+COPY packages/api-server/drizzle drizzle/
 COPY packages/api-server/src src/
 RUN mkdir /data
 VOLUME /data

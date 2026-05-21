@@ -1,40 +1,46 @@
 import { Database } from "bun:sqlite"
 import { mkdirSync } from "node:fs"
 import { dirname } from "node:path"
+import { fileURLToPath } from "node:url"
+import { desc } from "drizzle-orm"
+import { drizzle } from "drizzle-orm/bun-sqlite"
+import { migrate } from "drizzle-orm/bun-sqlite/migrator"
+import { type BrightnessLog, brightnessLogs } from "./schema"
 
-const dbPath = process.env.DB_PATH || "/data/brightness.db"
+const databasePath = process.env.DB_PATH || "/data/brightness.db"
 
-mkdirSync(dirname(dbPath), { recursive: true })
+mkdirSync(dirname(databasePath), { recursive: true })
 
-const db = new Database(dbPath, { create: true })
-db.exec("PRAGMA journal_mode=WAL")
+const sqliteDatabase = new Database(databasePath, { create: true })
+sqliteDatabase.exec("PRAGMA journal_mode=WAL")
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS brightness_logs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    timestamp TEXT NOT NULL DEFAULT (datetime('now')),
-    brightness TEXT NOT NULL
-  )
-`)
+const database = drizzle(sqliteDatabase)
+const migrationsFolder = fileURLToPath(new URL("../drizzle", import.meta.url))
 
-const insertStmt = db.prepare(
-  "INSERT INTO brightness_logs (brightness) VALUES (?)",
-)
+migrate(database, { migrationsFolder })
 
-const selectRecentStmt = db.prepare(
-  "SELECT id, timestamp, brightness FROM brightness_logs ORDER BY timestamp DESC LIMIT ?",
-)
-
-export function insertBrightness(brightness: string): void {
-  insertStmt.run(brightness)
+export function insertReading(
+  deviceId: string,
+  deviceName: string,
+  brightness: string,
+  battery: number | null,
+): void {
+  database
+    .insert(brightnessLogs)
+    .values({
+      device_id: deviceId,
+      device_name: deviceName,
+      brightness,
+      battery,
+    })
+    .run()
 }
 
-export function getBrightnessHistory(
-  limit = 100,
-): Array<{ id: number; timestamp: string; brightness: string }> {
-  return selectRecentStmt.all(limit) as Array<{
-    id: number
-    timestamp: string
-    brightness: string
-  }>
+export function getBrightnessHistory(limit = 100): BrightnessLog[] {
+  return database
+    .select()
+    .from(brightnessLogs)
+    .orderBy(desc(brightnessLogs.timestamp))
+    .limit(limit)
+    .all()
 }

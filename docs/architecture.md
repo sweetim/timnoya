@@ -12,11 +12,14 @@
 | `.gitignore` | Git ignore rules |
 | `bun.lock` | Bun dependency lockfile |
 | `packages/api-server/package.json` | API server package metadata and scripts |
+| `packages/api-server/drizzle.config.ts` | Drizzle Kit config for generating SQLite migrations |
+| `packages/api-server/drizzle/` | Generated Drizzle SQL migrations and schema snapshots |
 | `packages/api-server/tsconfig.json` | TypeScript config for the API server |
 | `packages/api-server/Dockerfile` | Docker build for API server |
 | `packages/api-server/src/index.ts` | Elysia server entry point — defines routes for device status API, starts presence sensor polling |
 | `packages/api-server/src/switchbot.ts` | SwitchBot API client — auth, device listing, status fetching |
-| `packages/api-server/src/database.ts` | SQLite DB (bun:sqlite) — brightness_logs table, insert/query helpers |
+| `packages/api-server/src/schema.ts` | Drizzle SQLite schema definitions |
+| `packages/api-server/src/database.ts` | SQLite DB (Drizzle + bun:sqlite) — applies migrations, insert/query helpers |
 | `packages/api-server/src/presence-sensor.ts` | Presence Sensor polling — finds device, logs brightness every 10 min |
 | `packages/dashboard/package.json` | Dashboard package metadata and scripts |
 | `packages/dashboard/tsconfig.json` | TypeScript config for the dashboard (includes `@/*` path alias) |
@@ -26,8 +29,8 @@
 | `packages/dashboard/src/index.html` | HTML entry point for the dashboard SPA |
 | `packages/dashboard/src/frontend.tsx` | React DOM mount point (StrictMode + HMR-aware root) |
 | `packages/dashboard/src/index.css` | Global styles — Tailwind v4 import, custom theme, glass/shimmer/badge utilities |
-| `packages/dashboard/src/App.tsx` | Dashboard shell — fetches `/api/devices/status`, renders Header + DeviceGrid, auto-refreshes every 30s, persists view mode in localStorage |
-| `packages/dashboard/src/types.ts` | Shared types — `DeviceStatus` (with `kind` field), `StatusResponse`, `KNOWN_FIELDS` set (includes `deviceId`, `hubDeviceId`) |
+| `packages/dashboard/src/App.tsx` | Dashboard shell — fetches `/api/devices/status` and `/api/presence-sensor/brightness`, renders Header + DeviceGrid + SensorReadings, auto-refreshes every 30s / 5min, persists view mode in localStorage |
+| `packages/dashboard/src/types.ts` | Shared types — `DeviceStatus` (with `kind` field), `StatusResponse`, `BrightnessReading`, `BrightnessHistoryResponse`, `KNOWN_FIELDS` set (includes `deviceId`, `hubDeviceId`) |
 | `packages/dashboard/src/logo.svg` | Favicon SVG |
 | `packages/dashboard/src/components/DeviceCard.tsx` | Single device card — icon, name, type badge, dynamic status fields |
 | `packages/dashboard/src/components/DeviceGrid.tsx` | Main content area — SummaryCard, ViewToggle, renders card/table/compact views with loading skeletons and empty/error states |
@@ -36,6 +39,7 @@
 | `packages/dashboard/src/components/SkeletonCard.tsx` | Shimmer loading placeholder for card view |
 | `packages/dashboard/src/components/SkeletonTable.tsx` | Shimmer loading placeholder for table view |
 | `packages/dashboard/src/components/SummaryCard.tsx` | Summary stats — total device count and battery status list |
+| `packages/dashboard/src/components/SensorReadings.tsx` | Line chart (recharts) showing brightness history per device with toggle buttons |
 | `packages/dashboard/src/components/ViewToggle.tsx` | View mode toggle — card/table/compact switcher |
 | `packages/dashboard/src/lib/device-utils.tsx` | Device type helpers — icon/color/bg mapping, formatValue, BatteryIndicator, PositionIndicator, BooleanBadge, compactStatusIcons |
 
@@ -44,6 +48,8 @@
 ```
 packages/api-server/
   Dockerfile
+  drizzle.config.ts        → Drizzle Kit migration generation config
+  drizzle/                 → SQL migrations and Drizzle migration metadata
   src/
     index.ts                → Elysia HTTP server (routes) + starts presence sensor polling
     switchbot.ts            → SwitchBot API client
@@ -52,8 +58,9 @@ packages/api-server/
       ├── getDevices()           → fetch /devices, return normalized list
       ├── getDeviceStatus()      → fetch /devices/:id/status
       └── getAllDeviceStatuses() → parallel status fetch for all devices
-    database.ts             → SQLite DB via bun:sqlite
-      ├── insertBrightness()     → insert a brightness reading
+    schema.ts               → Drizzle schema for brightness_logs
+    database.ts             → SQLite DB via Drizzle + bun:sqlite, runs migrations on startup
+      ├── insertReading()        → insert a brightness reading
       └── getBrightnessHistory() → query recent brightness logs
     presence-sensor.ts      → Presence Sensor brightness polling
       ├── findPresenceSensor()   → find device by name/type
@@ -70,7 +77,7 @@ packages/dashboard/
     frontend.tsx             → React DOM createRoot mount (HMR-aware)
     index.css                → Tailwind v4, custom theme, glass/shimmer/badge styles
     App.tsx                  → Dashboard shell — data fetching, auto-refresh, view mode persistence
-    types.ts                 → DeviceStatus (with kind), StatusResponse, KNOWN_FIELDS
+    types.ts                 → DeviceStatus (with kind), StatusResponse, BrightnessReading, BrightnessHistoryResponse, KNOWN_FIELDS
     logo.svg                 → Favicon
     components/
       Header.tsx             → Sticky header with refresh button
@@ -81,6 +88,7 @@ packages/dashboard/
       ViewToggle.tsx         → Card/table/compact view mode toggle
       SkeletonCard.tsx       → Shimmer loading placeholder (card)
       SkeletonTable.tsx      → Shimmer loading placeholder (table)
+      SensorReadings.tsx     → Line chart (recharts) with per-device brightness toggle
     lib/
       device-utils.tsx       → Icon/color mapping (ts-pattern), formatValue with
                                BatteryIndicator, PositionIndicator, BooleanBadge,
@@ -101,6 +109,8 @@ packages/dashboard/
 
 | Dependency | Purpose |
 |------------|---------|
+| `drizzle-kit` | Generates SQL migrations from Drizzle schemas |
+| `drizzle-orm` | Typed SQLite ORM/query builder |
 | `elysia` | HTTP framework |
 
 ### Dashboard (`packages/dashboard`)
@@ -112,6 +122,7 @@ packages/dashboard/
 | `bun-plugin-tailwind` | Tailwind plugin for Bun bundler |
 | `lucide-react` | Icon library |
 | `ts-pattern` | Pattern matching |
+| `recharts` | Charting library (line charts for sensor readings) |
 
 ## Environment Variables
 
@@ -120,5 +131,6 @@ packages/dashboard/
 | `SWITCHBOT_TOKEN` | api-server | Yes | SwitchBot API token |
 | `SWITCHBOT_SECRET_KEY` | api-server | Yes | SwitchBot API secret key for HMAC signing |
 | `PORT` | api-server | No | API server port (default: 3000) |
+| `DB_PATH` | api-server | No | SQLite DB path (default: `/data/brightness.db`) |
 | `API_BASE_URL` | dashboard | No | API server URL for proxy (default: `http://localhost:3000`) |
 | `NODE_ENV` | dashboard | No | Set to `production` to disable HMR |

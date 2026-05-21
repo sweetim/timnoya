@@ -1,8 +1,14 @@
 import { useCallback, useEffect, useState } from "react"
 import { DeviceGrid } from "@/components/DeviceGrid"
 import { Header } from "@/components/Header"
+import { SensorReadings } from "@/components/SensorReadings"
 import type { ViewMode } from "@/components/ViewToggle"
-import type { DeviceStatus, StatusResponse } from "@/types"
+import type {
+  BrightnessHistoryResponse,
+  BrightnessReading,
+  DeviceStatus,
+  StatusResponse,
+} from "@/types"
 import "./index.css"
 
 const STORAGE_KEY = "timnoya-view-mode"
@@ -18,7 +24,9 @@ function loadViewMode(): ViewMode {
 
 export function App() {
   const [devices, setDevices] = useState<DeviceStatus[]>([])
+  const [readings, setReadings] = useState<BrightnessReading[]>([])
   const [loading, setLoading] = useState(true)
+  const [readingsLoading, setReadingsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
   const [refreshing, setRefreshing] = useState(false)
@@ -40,11 +48,28 @@ export function App() {
     }
   }, [])
 
+  const fetchReadings = useCallback(async () => {
+    try {
+      const res = await fetch("/api/presence-sensor/brightness?limit=144")
+      if (!res.ok) return
+      const data: BrightnessHistoryResponse = await res.json()
+      setReadings(data.history)
+    } catch {
+    } finally {
+      setReadingsLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
     fetchStatuses()
+    fetchReadings()
     const interval = setInterval(fetchStatuses, 30_000)
-    return () => clearInterval(interval)
-  }, [fetchStatuses])
+    const readingsInterval = setInterval(fetchReadings, 5 * 60_000)
+    return () => {
+      clearInterval(interval)
+      clearInterval(readingsInterval)
+    }
+  }, [fetchStatuses, fetchReadings])
 
   const handleRefresh = () => {
     setRefreshing(true)
@@ -65,6 +90,12 @@ export function App() {
         refreshing={refreshing}
         onRefresh={handleRefresh}
       />
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
+        <SensorReadings
+          readings={readings}
+          loading={readingsLoading}
+        />
+      </div>
       <DeviceGrid
         devices={devices}
         loading={loading}

@@ -44,6 +44,16 @@ bun run dashboard:start  # Dashboard (production)
 
 The API server runs on port 3000, the dashboard on port 3001. The dashboard proxies `/api/*` requests to the API server.
 
+## Database Migrations
+
+The API server applies Drizzle SQLite migrations automatically on startup.
+
+After changing `packages/api-server/src/schema.ts`, generate a migration:
+
+```bash
+bun run --filter @timnoya/api-server db:generate
+```
+
 ## Linting & Formatting
 
 ```bash

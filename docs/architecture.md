@@ -20,7 +20,7 @@
 | `packages/api-server/src/switchbot.ts` | SwitchBot API client — auth, device listing, status fetching |
 | `packages/api-server/src/schema.ts` | Drizzle SQLite schema definitions |
 | `packages/api-server/src/database.ts` | SQLite DB (Drizzle + bun:sqlite) — applies migrations, insert/query helpers |
-| `packages/api-server/src/presence-sensor.ts` | Presence Sensor polling — finds device, logs brightness every 10 min |
+| `packages/api-server/src/presence-sensor.ts` | Multi-device polling — discovers all devices with brightness+battery, logs readings every 10 min |
 | `packages/dashboard/package.json` | Dashboard package metadata and scripts |
 | `packages/dashboard/tsconfig.json` | TypeScript config for the dashboard (includes `@/*` path alias) |
 | `packages/dashboard/Dockerfile` | Docker build for dashboard |
@@ -62,10 +62,11 @@ packages/api-server/
     database.ts             → SQLite DB via Drizzle + bun:sqlite, runs migrations on startup
       ├── insertReading()        → insert a brightness reading
       └── getBrightnessHistory() → query recent brightness logs
-    presence-sensor.ts      → Presence Sensor brightness polling
-      ├── findPresenceSensor()   → find device by name/type
-      ├── logBrightness()        → fetch status + write to DB
-      └── startPresenceSensorPolling() → start 10-min interval
+    presence-sensor.ts      → Multi-device brightness+battery polling
+      ├── findBrightnessDevices() → discover all devices with brightness+battery fields
+      ├── updateBatteries()        → refresh cached battery for each device
+      ├── logBrightness()          → fetch status + write to DB for each device
+      └── startPresenceSensorPolling() → discover devices, start 10-min/24h intervals
 
 packages/dashboard/
   Dockerfile

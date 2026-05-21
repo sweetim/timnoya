@@ -1,4 +1,8 @@
 import dayjs from "dayjs"
+import utc from "dayjs/plugin/utc"
+
+dayjs.extend(utc)
+
 import { Battery, Eye, EyeOff, Sun } from "lucide-react"
 import { useMemo, useState } from "react"
 import {
@@ -22,7 +26,7 @@ const DEVICE_COLORS = [
 ]
 
 function toLocalTimeKey(isoTimestamp: string): string {
-  return dayjs(isoTimestamp).format("YYYY-MM-DD HH:mm")
+  return dayjs.utc(isoTimestamp).local().format("YYYY-MM-DD HH:mm")
 }
 
 function brightnessToNumber(value: string | null): number | null {

@@ -5,6 +5,8 @@ services:
       dockerfile: packages/api-server/Dockerfile
     env_file:
       - .env
+    volumes:
+      - ./data:/data
 
   dashboard:
     build:

@@ -36,6 +36,7 @@ async function updateBatteries(): Promise<void> {
       const status = await getDeviceStatus(device.deviceId)
       if (typeof status.battery === "number") {
         batteryByDevice.set(device.deviceId, status.battery)
+        insertReading(device.deviceId, device.deviceName, null, status.battery)
       }
       console.log(
         `[light-sensor] Updated battery for ${device.deviceName}: ${batteryByDevice.get(device.deviceId) ?? null} at ${new Date().toISOString()}`,
@@ -55,10 +56,9 @@ async function logReadings(): Promise<void> {
       const status = await getDeviceStatus(device.deviceId)
       const brightness =
         status.lightLevel != null ? String(status.lightLevel) : null
-      const battery = batteryByDevice.get(device.deviceId) ?? null
-      insertReading(device.deviceId, device.deviceName, brightness, battery)
+      insertReading(device.deviceId, device.deviceName, brightness, null)
       console.log(
-        `[light-sensor] Logged reading for ${device.deviceName}: brightness=${brightness}, battery=${battery} at ${new Date().toISOString()}`,
+        `[light-sensor] Logged reading for ${device.deviceName}: brightness=${brightness} at ${new Date().toISOString()}`,
       )
     } catch (error) {
       console.error(

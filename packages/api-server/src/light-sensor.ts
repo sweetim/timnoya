@@ -53,7 +53,8 @@ async function logReadings(): Promise<void> {
   for (const device of matchingDevices) {
     try {
       const status = await getDeviceStatus(device.deviceId)
-      const brightness = status.lightLevel != null ? String(status.lightLevel) : null
+      const brightness =
+        status.lightLevel != null ? String(status.lightLevel) : null
       const battery = batteryByDevice.get(device.deviceId) ?? null
       insertReading(device.deviceId, device.deviceName, brightness, battery)
       console.log(

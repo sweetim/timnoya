@@ -50,7 +50,7 @@ export function App() {
 
   const fetchReadings = useCallback(async () => {
     try {
-      const res = await fetch("/api/presence-sensor/brightness?limit=144")
+      const res = await fetch("/api/sensors/brightness?limit=144")
       if (!res.ok) return
       const data: BrightnessHistoryResponse = await res.json()
       setReadings(data.history)

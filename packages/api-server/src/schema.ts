@@ -6,7 +6,7 @@ export const brightnessLogs = sqliteTable("brightness_logs", {
   timestamp: text("timestamp").notNull().default(sql`(datetime('now'))`),
   device_id: text("device_id").notNull(),
   device_name: text("device_name").notNull(),
-  brightness: text("brightness").notNull(),
+  brightness: text("brightness"),
   battery: integer("battery"),
 })
 

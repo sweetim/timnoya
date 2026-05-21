@@ -1,6 +1,6 @@
 import { Elysia } from "elysia"
 import { getBrightnessHistory } from "./database"
-import { startPresenceSensorPolling } from "./presence-sensor"
+import { startLightSensorPolling } from "./light-sensor"
 import { getAllDeviceStatuses, getDeviceStatus, getDevices } from "./switchbot"
 
 const app = new Elysia()
@@ -16,12 +16,12 @@ const app = new Elysia()
     const status = await getDeviceStatus(params.deviceId)
     return { status }
   })
-  .get("/presence-sensor/brightness", ({ query }) => {
+  .get("/sensors/brightness", ({ query }) => {
     const limit = query.limit ? Number(query.limit) : 100
     return { history: getBrightnessHistory(limit) }
   })
   .listen(process.env.PORT ? Number(process.env.PORT) : 3000)
 
-startPresenceSensorPolling()
+startLightSensorPolling()
 
 console.log(`API server running at http://localhost:${app.server?.port}`)

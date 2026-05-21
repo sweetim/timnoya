@@ -20,7 +20,8 @@ const DEVICE_COLORS = [
   "#06b6d4",
 ]
 
-function brightnessToNumber(value: string): number | null {
+function brightnessToNumber(value: string | null): number | null {
+  if (value == null) return null
   const num = Number(value)
   if (!Number.isNaN(num)) return num
   const map: Record<string, number> = {

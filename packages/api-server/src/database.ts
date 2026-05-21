@@ -22,7 +22,7 @@ migrate(database, { migrationsFolder })
 export function insertReading(
   deviceId: string,
   deviceName: string,
-  brightness: string,
+  brightness: string | null,
   battery: number | null,
 ): void {
   database

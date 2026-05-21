@@ -7,7 +7,7 @@ const BATTERY_INTERVAL_MS = 24 * 60 * 60 * 1000
 const batteryByDevice = new Map<string, number>()
 let matchingDevices: Device[] = []
 
-async function findBrightnessDevices(): Promise<Device[]> {
+async function findLightBatteryDevices(): Promise<Device[]> {
   const devices = await getDevices()
   const results: Device[] = []
 
@@ -15,7 +15,7 @@ async function findBrightnessDevices(): Promise<Device[]> {
     devices.map(async (device) => {
       try {
         const status = await getDeviceStatus(device.deviceId)
-        if ("lightLevel" in status && "battery" in status) {
+        if ("lightLevel" in status || "battery" in status) {
           results.push(device)
           if (typeof status.battery === "number") {
             batteryByDevice.set(device.deviceId, status.battery)
@@ -38,45 +38,45 @@ async function updateBatteries(): Promise<void> {
         batteryByDevice.set(device.deviceId, status.battery)
       }
       console.log(
-        `[presence-sensor] Updated battery for ${device.deviceName}: ${batteryByDevice.get(device.deviceId) ?? null} at ${new Date().toISOString()}`,
+        `[light-sensor] Updated battery for ${device.deviceName}: ${batteryByDevice.get(device.deviceId) ?? null} at ${new Date().toISOString()}`,
       )
     } catch (error) {
       console.error(
-        `[presence-sensor] Failed to update battery for ${device.deviceName}:`,
+        `[light-sensor] Failed to update battery for ${device.deviceName}:`,
         error,
       )
     }
   }
 }
 
-async function logBrightness(): Promise<void> {
+async function logReadings(): Promise<void> {
   for (const device of matchingDevices) {
     try {
       const status = await getDeviceStatus(device.deviceId)
-      const brightness = String(status.lightLevel ?? "unknown")
+      const brightness = status.lightLevel != null ? String(status.lightLevel) : null
       const battery = batteryByDevice.get(device.deviceId) ?? null
       insertReading(device.deviceId, device.deviceName, brightness, battery)
       console.log(
-        `[presence-sensor] Logged brightness for ${device.deviceName}: ${brightness}, battery: ${battery} at ${new Date().toISOString()}`,
+        `[light-sensor] Logged reading for ${device.deviceName}: brightness=${brightness}, battery=${battery} at ${new Date().toISOString()}`,
       )
     } catch (error) {
       console.error(
-        `[presence-sensor] Failed to log brightness for ${device.deviceName}:`,
+        `[light-sensor] Failed to log reading for ${device.deviceName}:`,
         error,
       )
     }
   }
 }
 
-export function startPresenceSensorPolling(): void {
-  findBrightnessDevices().then((devices) => {
+export function startLightSensorPolling(): void {
+  findLightBatteryDevices().then((devices) => {
     matchingDevices = devices
     console.log(
-      `[presence-sensor] Found ${devices.length} device(s) with lightLevel+battery: ${devices.map((d) => d.deviceName).join(", ")}`,
+      `[light-sensor] Found ${devices.length} device(s) with lightLevel|battery: ${devices.map((d) => d.deviceName).join(", ")}`,
     )
-    logBrightness()
+    logReadings()
     updateBatteries()
-    setInterval(logBrightness, BRIGHTNESS_INTERVAL_MS)
+    setInterval(logReadings, BRIGHTNESS_INTERVAL_MS)
     setInterval(updateBatteries, BATTERY_INTERVAL_MS)
   })
 }

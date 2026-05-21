@@ -16,11 +16,11 @@
 | `packages/api-server/drizzle/` | Generated Drizzle SQL migrations and schema snapshots |
 | `packages/api-server/tsconfig.json` | TypeScript config for the API server |
 | `packages/api-server/Dockerfile` | Docker build for API server |
-| `packages/api-server/src/index.ts` | Elysia server entry point — defines routes for device status API, starts presence sensor polling |
+| `packages/api-server/src/index.ts` | Elysia server entry point — defines routes for device status API, starts light sensor polling |
 | `packages/api-server/src/switchbot.ts` | SwitchBot API client — auth, device listing, status fetching |
 | `packages/api-server/src/schema.ts` | Drizzle SQLite schema definitions |
 | `packages/api-server/src/database.ts` | SQLite DB (Drizzle + bun:sqlite) — applies migrations, insert/query helpers |
-| `packages/api-server/src/presence-sensor.ts` | Multi-device polling — discovers all devices with brightness+battery, logs readings every 10 min |
+| `packages/api-server/src/light-sensor.ts` | Multi-device polling — discovers all devices with lightLevel or battery, logs readings every 10 min |
 | `packages/dashboard/package.json` | Dashboard package metadata and scripts |
 | `packages/dashboard/tsconfig.json` | TypeScript config for the dashboard (includes `@/*` path alias) |
 | `packages/dashboard/Dockerfile` | Docker build for dashboard |
@@ -29,7 +29,7 @@
 | `packages/dashboard/src/index.html` | HTML entry point for the dashboard SPA |
 | `packages/dashboard/src/frontend.tsx` | React DOM mount point (StrictMode + HMR-aware root) |
 | `packages/dashboard/src/index.css` | Global styles — Tailwind v4 import, custom theme, glass/shimmer/badge utilities |
-| `packages/dashboard/src/App.tsx` | Dashboard shell — fetches `/api/devices/status` and `/api/presence-sensor/brightness`, renders Header + DeviceGrid + SensorReadings, auto-refreshes every 30s / 5min, persists view mode in localStorage |
+| `packages/dashboard/src/App.tsx` | Dashboard shell — fetches `/api/devices/status` and `/api/sensors/brightness`, renders Header + DeviceGrid + SensorReadings, auto-refreshes every 30s / 5min, persists view mode in localStorage |
 | `packages/dashboard/src/types.ts` | Shared types — `DeviceStatus` (with `kind` field), `StatusResponse`, `BrightnessReading`, `BrightnessHistoryResponse`, `KNOWN_FIELDS` set (includes `deviceId`, `hubDeviceId`) |
 | `packages/dashboard/src/logo.svg` | Favicon SVG |
 | `packages/dashboard/src/components/DeviceCard.tsx` | Single device card — icon, name, type badge, dynamic status fields |
@@ -39,7 +39,7 @@
 | `packages/dashboard/src/components/SkeletonCard.tsx` | Shimmer loading placeholder for card view |
 | `packages/dashboard/src/components/SkeletonTable.tsx` | Shimmer loading placeholder for table view |
 | `packages/dashboard/src/components/SummaryCard.tsx` | Summary stats — total device count and battery status list |
-| `packages/dashboard/src/components/SensorReadings.tsx` | Line chart (recharts) showing brightness history per device with toggle buttons |
+| `packages/dashboard/src/components/SensorReadings.tsx` | Line chart (recharts) showing brightness and battery history per device with toggle buttons |
 | `packages/dashboard/src/components/ViewToggle.tsx` | View mode toggle — card/table/compact switcher |
 | `packages/dashboard/src/lib/device-utils.tsx` | Device type helpers — icon/color/bg mapping, formatValue, BatteryIndicator, PositionIndicator, BooleanBadge, compactStatusIcons |
 
@@ -51,22 +51,22 @@ packages/api-server/
   drizzle.config.ts        → Drizzle Kit migration generation config
   drizzle/                 → SQL migrations and Drizzle migration metadata
   src/
-    index.ts                → Elysia HTTP server (routes) + starts presence sensor polling
+    index.ts                → Elysia HTTP server (routes) + starts light sensor polling
     switchbot.ts            → SwitchBot API client
       ├── buildHeaders()         → HMAC-SHA256 signed auth headers
       ├── switchbotFetch<T>()    → generic GET with auth headers
       ├── getDevices()           → fetch /devices, return normalized list
       ├── getDeviceStatus()      → fetch /devices/:id/status
       └── getAllDeviceStatuses() → parallel status fetch for all devices
-    schema.ts               → Drizzle schema for brightness_logs
+    schema.ts               → Drizzle schema for brightness_logs (nullable brightness)
     database.ts             → SQLite DB via Drizzle + bun:sqlite, runs migrations on startup
-      ├── insertReading()        → insert a brightness reading
+      ├── insertReading()        → insert a brightness/battery reading
       └── getBrightnessHistory() → query recent brightness logs
-    presence-sensor.ts      → Multi-device brightness+battery polling
-      ├── findBrightnessDevices() → discover all devices with brightness+battery fields
-      ├── updateBatteries()        → refresh cached battery for each device
-      ├── logBrightness()          → fetch status + write to DB for each device
-      └── startPresenceSensorPolling() → discover devices, start 10-min/24h intervals
+    light-sensor.ts         → Multi-device lightLevel|battery polling
+      ├── findLightBatteryDevices() → discover all devices with lightLevel or battery fields
+      ├── updateBatteries()         → refresh cached battery for each device
+      ├── logReadings()             → fetch status + write to DB for each device
+      └── startLightSensorPolling() → discover devices, start 10-min/24h intervals
 
 packages/dashboard/
   Dockerfile

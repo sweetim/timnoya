@@ -14,7 +14,7 @@ export type BrightnessReading = {
   timestamp: string
   device_id: string
   device_name: string
-  brightness: string
+  brightness: string | null
   battery: number | null
 }
 

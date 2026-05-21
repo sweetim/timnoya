@@ -249,7 +249,10 @@ export function SensorReadings({ readings, loading }: SensorReadingsProps) {
                   const parts = s.split(" ")
                   return parts.length >= 2 ? `${parts[0]} ${parts[1]}` : s
                 }}
-                formatter={(value: unknown, name: unknown): [string, string] => {
+                formatter={(
+                  value: unknown,
+                  name: unknown,
+                ): [string, string] => {
                   const deviceName = String(name ?? "").replace(/_battery$/, "")
                   return [`${value}%`, deviceName]
                 }}

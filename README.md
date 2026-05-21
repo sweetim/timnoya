@@ -40,6 +40,8 @@ services:
     image: ghcr.io/sweetim/timnoya/api-server:latest
     restart: unless-stopped
     env_file: .env
+    volumes:
+      - ./data:/data
 
   dashboard:
     image: ghcr.io/sweetim/timnoya/dashboard:latest

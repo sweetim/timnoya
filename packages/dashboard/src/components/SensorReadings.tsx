@@ -1,3 +1,4 @@
+import dayjs from "dayjs"
 import { Battery, Eye, EyeOff, Sun } from "lucide-react"
 import { useMemo, useState } from "react"
 import {
@@ -19,6 +20,10 @@ const DEVICE_COLORS = [
   "#8b5cf6",
   "#06b6d4",
 ]
+
+function toLocalTimeKey(isoTimestamp: string): string {
+  return dayjs(isoTimestamp).format("YYYY-MM-DD HH:mm")
+}
 
 function brightnessToNumber(value: string | null): number | null {
   if (value == null) return null
@@ -62,7 +67,7 @@ export function SensorReadings({ readings, loading }: SensorReadingsProps) {
     const byTimestamp = new Map<string, Record<string, number | string>>()
 
     for (const r of readings) {
-      const key = r.timestamp.slice(0, 16)
+      const key = toLocalTimeKey(r.timestamp)
       const existing = byTimestamp.get(key) ?? { time: key }
       const numVal = brightnessToNumber(r.brightness)
       if (numVal !== null) {
@@ -81,7 +86,7 @@ export function SensorReadings({ readings, loading }: SensorReadingsProps) {
 
     for (const r of readings) {
       if (r.battery == null) continue
-      const key = r.timestamp.slice(0, 16)
+      const key = toLocalTimeKey(r.timestamp)
       const existing = byTimestamp.get(key) ?? { time: key }
       existing[`${r.device_id}_battery`] = r.battery
       byTimestamp.set(key, existing)

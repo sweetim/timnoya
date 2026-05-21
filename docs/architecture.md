@@ -14,8 +14,10 @@
 | `packages/api-server/package.json` | API server package metadata and scripts |
 | `packages/api-server/tsconfig.json` | TypeScript config for the API server |
 | `packages/api-server/Dockerfile` | Docker build for API server |
-| `packages/api-server/src/index.ts` | Elysia server entry point — defines routes for device status API |
+| `packages/api-server/src/index.ts` | Elysia server entry point — defines routes for device status API, starts presence sensor polling |
 | `packages/api-server/src/switchbot.ts` | SwitchBot API client — auth, device listing, status fetching |
+| `packages/api-server/src/database.ts` | SQLite DB (bun:sqlite) — brightness_logs table, insert/query helpers |
+| `packages/api-server/src/presence-sensor.ts` | Presence Sensor polling — finds device, logs brightness every 10 min |
 | `packages/dashboard/package.json` | Dashboard package metadata and scripts |
 | `packages/dashboard/tsconfig.json` | TypeScript config for the dashboard (includes `@/*` path alias) |
 | `packages/dashboard/Dockerfile` | Docker build for dashboard |
@@ -43,13 +45,20 @@
 packages/api-server/
   Dockerfile
   src/
-    index.ts                → Elysia HTTP server (routes)
+    index.ts                → Elysia HTTP server (routes) + starts presence sensor polling
     switchbot.ts            → SwitchBot API client
       ├── buildHeaders()         → HMAC-SHA256 signed auth headers
       ├── switchbotFetch<T>()    → generic GET with auth headers
       ├── getDevices()           → fetch /devices, return normalized list
       ├── getDeviceStatus()      → fetch /devices/:id/status
       └── getAllDeviceStatuses() → parallel status fetch for all devices
+    database.ts             → SQLite DB via bun:sqlite
+      ├── insertBrightness()     → insert a brightness reading
+      └── getBrightnessHistory() → query recent brightness logs
+    presence-sensor.ts      → Presence Sensor brightness polling
+      ├── findPresenceSensor()   → find device by name/type
+      ├── logBrightness()        → fetch status + write to DB
+      └── startPresenceSensorPolling() → start 10-min interval
 
 packages/dashboard/
   Dockerfile

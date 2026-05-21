@@ -7,4 +7,6 @@ FROM oven/bun:1-alpine
 WORKDIR /app
 COPY --from=install /app/node_modules node_modules
 COPY packages/api-server/src src/
+RUN mkdir /data
+VOLUME /data
 CMD ["bun", "run", "src/index.ts"]

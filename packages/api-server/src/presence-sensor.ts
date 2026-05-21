@@ -15,7 +15,7 @@ async function findBrightnessDevices(): Promise<Device[]> {
     devices.map(async (device) => {
       try {
         const status = await getDeviceStatus(device.deviceId)
-        if ("brightness" in status && "battery" in status) {
+        if ("lightLevel" in status && "battery" in status) {
           results.push(device)
           if (typeof status.battery === "number") {
             batteryByDevice.set(device.deviceId, status.battery)
@@ -53,7 +53,7 @@ async function logBrightness(): Promise<void> {
   for (const device of matchingDevices) {
     try {
       const status = await getDeviceStatus(device.deviceId)
-      const brightness = String(status.brightness ?? "unknown")
+      const brightness = String(status.lightLevel ?? "unknown")
       const battery = batteryByDevice.get(device.deviceId) ?? null
       insertReading(device.deviceId, device.deviceName, brightness, battery)
       console.log(
@@ -72,7 +72,7 @@ export function startPresenceSensorPolling(): void {
   findBrightnessDevices().then((devices) => {
     matchingDevices = devices
     console.log(
-      `[presence-sensor] Found ${devices.length} device(s) with brightness+battery: ${devices.map((d) => d.deviceName).join(", ")}`,
+      `[presence-sensor] Found ${devices.length} device(s) with lightLevel+battery: ${devices.map((d) => d.deviceName).join(", ")}`,
     )
     logBrightness()
     updateBatteries()

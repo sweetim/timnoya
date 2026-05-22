@@ -14,7 +14,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts"
-import type { BrightnessReading } from "@/types"
+import type { AggregationMode, BrightnessReading } from "@/types"
 
 const DEVICE_COLORS = [
   "#f59e0b",
@@ -25,11 +25,17 @@ const DEVICE_COLORS = [
   "#06b6d4",
 ]
 
+const AGGREGATION_LABELS: Record<AggregationMode, string> = {
+  raw: "Raw (24h)",
+  hourly: "Hourly (7d)",
+  daily: "Daily (90d)",
+}
+
 function toLocalTimeKey(isoTimestamp: string): string {
   return dayjs.utc(isoTimestamp).local().format("YYYY-MM-DD HH:mm")
 }
 
-function brightnessToNumber(value: string | null): number | null {
+function brightnessToNumber(value: string | number | null): number | null {
   if (value == null) return null
   const num = Number(value)
   if (!Number.isNaN(num)) return num
@@ -39,15 +45,22 @@ function brightnessToNumber(value: string | null): number | null {
     dim: 50,
     dark: 20,
   }
-  return map[value.toLowerCase()] ?? null
+  return map[String(value).toLowerCase()] ?? null
 }
 
 type SensorReadingsProps = {
   readings: BrightnessReading[]
   loading: boolean
+  aggregation: AggregationMode
+  onAggregationChange: (mode: AggregationMode) => void
 }
 
-export function SensorReadings({ readings, loading }: SensorReadingsProps) {
+export function SensorReadings({
+  readings,
+  loading,
+  aggregation,
+  onAggregationChange,
+}: SensorReadingsProps) {
   const devices = useMemo(() => {
     const seen = new Map<string, string>()
     for (const r of readings) {
@@ -103,6 +116,26 @@ export function SensorReadings({ readings, loading }: SensorReadingsProps) {
 
   const hasBatteryData = batteryChartData.length > 0
 
+  const formatXAxisTick = (t: unknown): string => {
+    const s = String(t ?? "")
+    if (aggregation === "daily") {
+      const parts = s.split(" ")
+      return parts[0] ?? s
+    }
+    const parts = s.split(" ")
+    return parts.length >= 2 ? (parts[1] as string) : s
+  }
+
+  const formatTooltipLabel = (label: unknown): string => {
+    const s = String(label ?? "")
+    if (aggregation === "daily") {
+      const parts = s.split(" ")
+      return parts[0] ?? s
+    }
+    const parts = s.split(" ")
+    return parts.length >= 2 ? `${parts[0]} ${parts[1]}` : s
+  }
+
   if (loading) {
     return (
       <div className="glass-card rounded-2xl p-5">
@@ -116,14 +149,35 @@ export function SensorReadings({ readings, loading }: SensorReadingsProps) {
 
   return (
     <div className="glass-card rounded-2xl p-5">
-      <div className="flex items-center gap-2 mb-4">
-        <Sun
-          className="h-4 w-4 text-yellow-400"
-          strokeWidth={2}
-        />
-        <span className="text-sm font-medium text-slate-300">
-          Sensor Readings
-        </span>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Sun
+            className="h-4 w-4 text-yellow-400"
+            strokeWidth={2}
+          />
+          <span className="text-sm font-medium text-slate-300">
+            Sensor Readings
+          </span>
+        </div>
+
+        <div className="flex rounded-lg border border-white/[0.08] overflow-hidden">
+          {(
+            Object.entries(AGGREGATION_LABELS) as [AggregationMode, string][]
+          ).map(([mode, label]) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => onAggregationChange(mode)}
+              className={`px-3 py-1 text-xs font-medium transition-all duration-200 ${
+                aggregation === mode
+                  ? "bg-white/[0.1] text-white"
+                  : "text-slate-500 hover:text-slate-300"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {devices.length > 1 && (
@@ -169,11 +223,7 @@ export function SensorReadings({ readings, loading }: SensorReadingsProps) {
           />
           <XAxis
             dataKey="time"
-            tickFormatter={(t: unknown): string => {
-              const s = String(t ?? "")
-              const parts = s.split(" ")
-              return parts.length >= 2 ? (parts[1] as string) : s
-            }}
+            tickFormatter={formatXAxisTick}
             tick={{ fontSize: 10, fill: "#64748b" }}
             stroke="rgba(255,255,255,0.1)"
           />
@@ -188,11 +238,7 @@ export function SensorReadings({ readings, loading }: SensorReadingsProps) {
               borderRadius: "8px",
               fontSize: "12px",
             }}
-            labelFormatter={(label: unknown) => {
-              const s = String(label ?? "")
-              const parts = s.split(" ")
-              return parts.length >= 2 ? `${parts[0]} ${parts[1]}` : s
-            }}
+            labelFormatter={formatTooltipLabel}
           />
           {devices.map(([deviceId, deviceName], idx) => (
             <Line
@@ -233,11 +279,7 @@ export function SensorReadings({ readings, loading }: SensorReadingsProps) {
               />
               <XAxis
                 dataKey="time"
-                tickFormatter={(t: unknown): string => {
-                  const s = String(t ?? "")
-                  const parts = s.split(" ")
-                  return parts.length >= 2 ? (parts[1] as string) : s
-                }}
+                tickFormatter={formatXAxisTick}
                 tick={{ fontSize: 10, fill: "#64748b" }}
                 stroke="rgba(255,255,255,0.1)"
               />
@@ -254,11 +296,7 @@ export function SensorReadings({ readings, loading }: SensorReadingsProps) {
                   borderRadius: "8px",
                   fontSize: "12px",
                 }}
-                labelFormatter={(label: unknown) => {
-                  const s = String(label ?? "")
-                  const parts = s.split(" ")
-                  return parts.length >= 2 ? `${parts[0]} ${parts[1]}` : s
-                }}
+                labelFormatter={formatTooltipLabel}
                 formatter={(
                   value: unknown,
                   name: unknown,

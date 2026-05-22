@@ -4,6 +4,7 @@ import { Header } from "@/components/Header"
 import { SensorReadings } from "@/components/SensorReadings"
 import type { ViewMode } from "@/components/ViewToggle"
 import type {
+  AggregationMode,
   BrightnessHistoryResponse,
   BrightnessReading,
   DeviceStatus,
@@ -12,6 +13,7 @@ import type {
 import "./index.css"
 
 const STORAGE_KEY = "timnoya-view-mode"
+const AGGREGATION_STORAGE_KEY = "timnoya-aggregation"
 
 function loadViewMode(): ViewMode {
   try {
@@ -20,6 +22,15 @@ function loadViewMode(): ViewMode {
       return stored
   } catch {}
   return "card"
+}
+
+function loadAggregation(): AggregationMode {
+  try {
+    const stored = localStorage.getItem(AGGREGATION_STORAGE_KEY)
+    if (stored === "raw" || stored === "hourly" || stored === "daily")
+      return stored
+  } catch {}
+  return "hourly"
 }
 
 export function App() {
@@ -31,6 +42,8 @@ export function App() {
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [viewMode, setViewMode] = useState<ViewMode>(loadViewMode)
+  const [aggregation, setAggregation] =
+    useState<AggregationMode>(loadAggregation)
 
   const fetchStatuses = useCallback(async () => {
     try {
@@ -48,23 +61,27 @@ export function App() {
     }
   }, [])
 
-  const fetchReadings = useCallback(async () => {
-    try {
-      const res = await fetch("/api/sensors/brightness?limit=144")
-      if (!res.ok) return
-      const data: BrightnessHistoryResponse = await res.json()
-      setReadings(data.history)
-    } catch {
-    } finally {
-      setReadingsLoading(false)
-    }
-  }, [])
+  const fetchReadings = useCallback(
+    async (mode: AggregationMode = aggregation) => {
+      try {
+        setReadingsLoading(true)
+        const res = await fetch(`/api/sensors/brightness?aggregation=${mode}`)
+        if (!res.ok) return
+        const data: BrightnessHistoryResponse = await res.json()
+        setReadings(data.history)
+      } catch {
+      } finally {
+        setReadingsLoading(false)
+      }
+    },
+    [aggregation],
+  )
 
   useEffect(() => {
     fetchStatuses()
     fetchReadings()
     const interval = setInterval(fetchStatuses, 30_000)
-    const readingsInterval = setInterval(fetchReadings, 5 * 60_000)
+    const readingsInterval = setInterval(() => fetchReadings(), 5 * 60_000)
     return () => {
       clearInterval(interval)
       clearInterval(readingsInterval)
@@ -83,6 +100,14 @@ export function App() {
     } catch {}
   }
 
+  const handleAggregationChange = (mode: AggregationMode) => {
+    setAggregation(mode)
+    try {
+      localStorage.setItem(AGGREGATION_STORAGE_KEY, mode)
+    } catch {}
+    fetchReadings(mode)
+  }
+
   return (
     <div className="min-h-screen bg-dark-900">
       <Header
@@ -94,6 +119,8 @@ export function App() {
         <SensorReadings
           readings={readings}
           loading={readingsLoading}
+          aggregation={aggregation}
+          onAggregationChange={handleAggregationChange}
         />
       </div>
       <DeviceGrid

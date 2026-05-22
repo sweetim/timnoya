@@ -10,13 +10,15 @@ export type StatusResponse = {
 }
 
 export type BrightnessReading = {
-  id: number
+  id?: number
   timestamp: string
   device_id: string
   device_name: string
-  brightness: string | null
+  brightness: string | number | null
   battery: number | null
 }
+
+export type AggregationMode = "raw" | "hourly" | "daily"
 
 export type BrightnessHistoryResponse = {
   history: BrightnessReading[]

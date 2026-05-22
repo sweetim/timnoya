@@ -30,7 +30,7 @@
 | `packages/dashboard/src/frontend.tsx` | React DOM mount point (StrictMode + HMR-aware root) |
 | `packages/dashboard/src/index.css` | Global styles — Tailwind v4 import, custom theme, glass/shimmer/badge utilities |
 | `packages/dashboard/src/App.tsx` | Dashboard shell — fetches `/api/devices/status` and `/api/sensors/brightness`, renders Header + DeviceGrid + SensorReadings, auto-refreshes every 30s / 5min, persists view mode in localStorage |
-| `packages/dashboard/src/types.ts` | Shared types — `DeviceStatus` (with `kind` field), `StatusResponse`, `BrightnessReading`, `BrightnessHistoryResponse`, `KNOWN_FIELDS` set (includes `deviceId`, `hubDeviceId`) |
+| `packages/dashboard/src/types.ts` | Shared types — `DeviceStatus` (with `kind` field), `StatusResponse`, `BrightnessReading`, `BrightnessHistoryResponse`, `AggregationMode`, `KNOWN_FIELDS` set (includes `deviceId`, `hubDeviceId`) |
 | `packages/dashboard/src/logo.svg` | Favicon SVG |
 | `packages/dashboard/src/components/DeviceCard.tsx` | Single device card — icon, name, type badge, dynamic status fields |
 | `packages/dashboard/src/components/DeviceGrid.tsx` | Main content area — SummaryCard, ViewToggle, renders card/table/compact views with loading skeletons and empty/error states |
@@ -39,7 +39,7 @@
 | `packages/dashboard/src/components/SkeletonCard.tsx` | Shimmer loading placeholder for card view |
 | `packages/dashboard/src/components/SkeletonTable.tsx` | Shimmer loading placeholder for table view |
 | `packages/dashboard/src/components/SummaryCard.tsx` | Summary stats — total device count and battery status list |
-| `packages/dashboard/src/components/SensorReadings.tsx` | Line chart (recharts) showing brightness and battery history per device with toggle buttons |
+| `packages/dashboard/src/components/SensorReadings.tsx` | Line chart (recharts) showing brightness and battery history per device with aggregation toggle (raw/hourly/daily) |
 | `packages/dashboard/src/components/ViewToggle.tsx` | View mode toggle — card/table/compact switcher |
 | `packages/dashboard/src/lib/device-utils.tsx` | Device type helpers — icon/color/bg mapping, formatValue, BatteryIndicator, PositionIndicator, BooleanBadge, compactStatusIcons |
 
@@ -61,7 +61,8 @@ packages/api-server/
     schema.ts               → Drizzle schema for brightness_logs (nullable brightness)
     database.ts             → SQLite DB via Drizzle + bun:sqlite, runs migrations on startup
       ├── insertReading()        → insert a brightness/battery reading
-      └── getBrightnessHistory() → query recent brightness logs
+      ├── getBrightnessHistory() → query recent brightness logs (legacy, with limit)
+      └── getAggregatedHistory() → query aggregated history by raw/hourly/daily mode
     light-sensor.ts         → Multi-device lightLevel|battery polling
       ├── findLightBatteryDevices() → discover all devices with lightLevel or battery fields
       ├── updateBatteries()         → refresh cached battery for each device
@@ -89,7 +90,7 @@ packages/dashboard/
       ViewToggle.tsx         → Card/table/compact view mode toggle
       SkeletonCard.tsx       → Shimmer loading placeholder (card)
       SkeletonTable.tsx      → Shimmer loading placeholder (table)
-      SensorReadings.tsx     → Line chart (recharts) with per-device brightness toggle
+      SensorReadings.tsx     → Line chart (recharts) with per-device brightness toggle and aggregation mode selector
     lib/
       device-utils.tsx       → Icon/color mapping (ts-pattern), formatValue with
                                BatteryIndicator, PositionIndicator, BooleanBadge,

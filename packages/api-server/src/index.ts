@@ -1,7 +1,13 @@
 import { Elysia } from "elysia"
-import { getBrightnessHistory } from "./database"
+import {
+  type AggregationMode,
+  getAggregatedHistory,
+  getBrightnessHistory,
+} from "./database"
 import { startLightSensorPolling } from "./light-sensor"
 import { getAllDeviceStatuses, getDeviceStatus, getDevices } from "./switchbot"
+
+const VALID_AGGREGATIONS = new Set<string>(["raw", "hourly", "daily"])
 
 const app = new Elysia()
   .get("/devices", async () => {
@@ -17,6 +23,10 @@ const app = new Elysia()
     return { status }
   })
   .get("/sensors/brightness", ({ query }) => {
+    const aggregation = query.aggregation
+    if (aggregation && VALID_AGGREGATIONS.has(aggregation)) {
+      return { history: getAggregatedHistory(aggregation as AggregationMode) }
+    }
     const limit = query.limit ? Number(query.limit) : 100
     return { history: getBrightnessHistory(limit) }
   })

@@ -19,13 +19,23 @@ function formatMessage(level: LogLevel, tag: string, message: string): string {
   return `[${timestamp}] [${level.toUpperCase()}] [${tag}] ${message}`
 }
 
-function log(level: LogLevel, tag: string, message: string, ...args: unknown[]) {
+function log(
+  level: LogLevel,
+  tag: string,
+  message: string,
+  ...args: unknown[]
+) {
   if (!shouldLog(level)) return
   const formatted = formatMessage(level, tag, message)
   if (args.length > 0) {
-    console[level === "error" ? "error" : level === "warn" ? "warn" : "log"](formatted, ...args)
+    console[level === "error" ? "error" : level === "warn" ? "warn" : "log"](
+      formatted,
+      ...args,
+    )
   } else {
-    console[level === "error" ? "error" : level === "warn" ? "warn" : "log"](formatted)
+    console[level === "error" ? "error" : level === "warn" ? "warn" : "log"](
+      formatted,
+    )
   }
 }
 

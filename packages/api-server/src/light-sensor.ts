@@ -25,7 +25,10 @@ async function findLightBatteryDevices(): Promise<Device[]> {
           }
         }
       } catch (error) {
-        log.warn(`Failed to get status for ${device.deviceName} during discovery:`, error)
+        log.warn(
+          `Failed to get status for ${device.deviceName} during discovery:`,
+          error,
+        )
       }
     }),
   )
@@ -41,7 +44,9 @@ async function updateBatteries(): Promise<void> {
         batteryByDevice.set(device.deviceId, status.battery)
         insertReading(device.deviceId, device.deviceName, null, status.battery)
       }
-      log.info(`Updated battery for ${device.deviceName}: ${batteryByDevice.get(device.deviceId) ?? null}`)
+      log.info(
+        `Updated battery for ${device.deviceName}: ${batteryByDevice.get(device.deviceId) ?? null}`,
+      )
     } catch (error) {
       log.error(`Failed to update battery for ${device.deviceName}:`, error)
     }
@@ -55,7 +60,9 @@ async function logReadings(): Promise<void> {
       const brightness =
         status.lightLevel != null ? String(status.lightLevel) : null
       insertReading(device.deviceId, device.deviceName, brightness, null)
-      log.info(`Logged reading for ${device.deviceName}: brightness=${brightness}`)
+      log.info(
+        `Logged reading for ${device.deviceName}: brightness=${brightness}`,
+      )
     } catch (error) {
       log.error(`Failed to log reading for ${device.deviceName}:`, error)
     }
@@ -66,7 +73,9 @@ export function startLightSensorPolling(): void {
   findLightBatteryDevices()
     .then((devices) => {
       matchingDevices = devices
-      log.info(`Found ${devices.length} device(s) with lightLevel|battery: ${devices.map((d) => d.deviceName).join(", ")}`)
+      log.info(
+        `Found ${devices.length} device(s) with lightLevel|battery: ${devices.map((d) => d.deviceName).join(", ")}`,
+      )
       logReadings()
       updateBatteries()
       setInterval(logReadings, BRIGHTNESS_INTERVAL_MS)

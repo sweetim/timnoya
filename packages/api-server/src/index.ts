@@ -54,7 +54,9 @@ const app = new Elysia()
       JSON.stringify(payload),
     )
 
-    log.info(`Received event: ${payload.eventType} device=${context?.deviceMac ?? "unknown"}`)
+    log.info(
+      `Received event: ${payload.eventType} device=${context?.deviceMac ?? "unknown"}`,
+    )
 
     return { statusCode: 100, message: "success" }
   })

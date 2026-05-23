@@ -131,27 +131,29 @@ export async function getAllDeviceStatuses(): Promise<DeviceStatus[]> {
   const devices = await getDevices()
 
   const statuses = await Promise.all(
-    devices.map(async (device) => {
-      try {
-        const status = await getDeviceStatus(device.deviceId)
-        return {
-          ...status,
-          deviceId: device.deviceId,
-          name: device.deviceName,
-          type: device.deviceType,
-          kind: device.kind,
+    devices
+      .filter((device) => device.kind !== "infrared")
+      .map(async (device) => {
+        try {
+          const status = await getDeviceStatus(device.deviceId)
+          return {
+            ...status,
+            deviceId: device.deviceId,
+            name: device.deviceName,
+            type: device.deviceType,
+            kind: device.kind,
+          }
+        } catch (error) {
+          log.warn(`Failed to get status for ${device.deviceName}:`, error)
+          return {
+            deviceId: device.deviceId,
+            name: device.deviceName,
+            type: device.deviceType,
+            kind: device.kind,
+            error: true,
+          }
         }
-      } catch (error) {
-        log.warn(`Failed to get status for ${device.deviceName}:`, error)
-        return {
-          deviceId: device.deviceId,
-          name: device.deviceName,
-          type: device.deviceType,
-          kind: device.kind,
-          error: true,
-        }
-      }
-    }),
+      }),
   )
 
   return statuses

@@ -14,8 +14,9 @@ async function findLightBatteryDevices(): Promise<Device[]> {
   const devices = await getDevices()
   const results: Device[] = []
 
+  const physicalDevices = devices.filter((d) => d.kind !== "infrared")
   await Promise.all(
-    devices.map(async (device) => {
+    physicalDevices.map(async (device) => {
       try {
         const status = await getDeviceStatus(device.deviceId)
         if ("lightLevel" in status || "battery" in status) {

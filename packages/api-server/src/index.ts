@@ -3,9 +3,12 @@ import {
   type AggregationMode,
   getAggregatedHistory,
   getBrightnessHistory,
+  getWebhookHistory,
+  insertWebhookEvent,
 } from "./database"
 import { startLightSensorPolling } from "./light-sensor"
 import { getAllDeviceStatuses, getDeviceStatus, getDevices } from "./switchbot"
+import { ensureWebhook } from "./webhook"
 
 const VALID_AGGREGATIONS = new Set<string>(["raw", "hourly", "daily"])
 
@@ -30,8 +33,31 @@ const app = new Elysia()
     const limit = query.limit ? Number(query.limit) : 100
     return { history: getBrightnessHistory(limit) }
   })
+  .post("/webhook/switchbot", async ({ body }) => {
+    const payload = body as Record<string, unknown>
+    const context = payload.context as Record<string, unknown> | undefined
+
+    insertWebhookEvent(
+      String(payload.eventType ?? "unknown"),
+      payload.eventVersion ? String(payload.eventVersion) : null,
+      context?.deviceType ? String(context.deviceType) : null,
+      context?.deviceMac ? String(context.deviceMac) : null,
+      JSON.stringify(payload),
+    )
+
+    console.log(
+      `[webhook] Received event: ${payload.eventType} device=${context?.deviceMac ?? "unknown"}`,
+    )
+
+    return { statusCode: 100, message: "success" }
+  })
+  .get("/webhook/events", ({ query }) => {
+    const limit = query.limit ? Number(query.limit) : 100
+    return { events: getWebhookHistory(limit) }
+  })
   .listen(process.env.PORT ? Number(process.env.PORT) : 3000)
 
 startLightSensorPolling()
+ensureWebhook()
 
 console.log(`API server running at http://localhost:${app.server?.port}`)

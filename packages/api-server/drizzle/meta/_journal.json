@@ -15,6 +15,13 @@
       "when": 1779367276859,
       "tag": "0001_tiresome_jane_foster",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1779501883126,
+      "tag": "0002_productive_stephen_strange",
+      "breakpoints": true
     }
   ]
 }

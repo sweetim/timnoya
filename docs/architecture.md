@@ -16,11 +16,13 @@
 | `packages/api-server/drizzle/` | Generated Drizzle SQL migrations and schema snapshots |
 | `packages/api-server/tsconfig.json` | TypeScript config for the API server |
 | `packages/api-server/Dockerfile` | Docker build for API server |
-| `packages/api-server/src/index.ts` | Elysia server entry point — defines routes for device status API, starts light sensor polling |
-| `packages/api-server/src/switchbot.ts` | SwitchBot API client — auth, device listing, status fetching |
-| `packages/api-server/src/schema.ts` | Drizzle SQLite schema definitions |
+| `packages/api-server/src/index.ts` | Elysia server entry point — defines routes for device status API, webhook receiver, starts light sensor polling and webhook registration |
+| `packages/api-server/src/switchbot.ts` | SwitchBot API client — auth, device listing, status fetching, webhook management |
+| `packages/api-server/src/schema.ts` | Drizzle SQLite schema definitions (brightness_logs, webhook_events) |
 | `packages/api-server/src/database.ts` | SQLite DB (Drizzle + bun:sqlite) — applies migrations, insert/query helpers |
 | `packages/api-server/src/light-sensor.ts` | Multi-device polling — discovers all devices with lightLevel or battery, logs readings every 10 min |
+| `packages/api-server/src/webhook.ts` | Webhook registration — checks if webhook URL is registered with SwitchBot, registers if missing |
+| `packages/api-server/src/webhook.ts` | Webhook registration — checks if webhook URL is registered, registers if missing |
 | `packages/dashboard/package.json` | Dashboard package metadata and scripts |
 | `packages/dashboard/tsconfig.json` | TypeScript config for the dashboard (includes `@/*` path alias) |
 | `packages/dashboard/Dockerfile` | Docker build for dashboard |
@@ -55,19 +57,26 @@ packages/api-server/
     switchbot.ts            → SwitchBot API client
       ├── buildHeaders()         → HMAC-SHA256 signed auth headers
       ├── switchbotFetch<T>()    → generic GET with auth headers
+      ├── switchbotPost<T>()     → generic POST with auth headers
       ├── getDevices()           → fetch /devices, return normalized list
       ├── getDeviceStatus()      → fetch /devices/:id/status
-      └── getAllDeviceStatuses() → parallel status fetch for all devices
-    schema.ts               → Drizzle schema for brightness_logs (nullable brightness)
+      ├── getAllDeviceStatuses() → parallel status fetch for all devices
+      ├── getRegisteredWebhooks() → fetch current webhook registrations
+      └── setupWebhook()         → register webhook URL with SwitchBot
+    schema.ts               → Drizzle schema for brightness_logs (nullable brightness), webhook_events (raw payload + parsed fields)
     database.ts             → SQLite DB via Drizzle + bun:sqlite, runs migrations on startup
       ├── insertReading()        → insert a brightness/battery reading
       ├── getBrightnessHistory() → query recent brightness logs (legacy, with limit)
-      └── getAggregatedHistory() → query aggregated history by raw/hourly/daily mode
+      ├── getAggregatedHistory() → query aggregated history by raw/hourly/daily mode
+      ├── insertWebhookEvent()   → insert a parsed webhook event
+      └── getWebhookHistory()    → query recent webhook events
     light-sensor.ts         → Multi-device lightLevel|battery polling
       ├── findLightBatteryDevices() → discover all devices with lightLevel or battery fields
       ├── updateBatteries()         → refresh cached battery for each device
       ├── logReadings()             → fetch status + write to DB for each device
       └── startLightSensorPolling() → discover devices, start 10-min/24h intervals
+    webhook.ts              → Webhook registration on startup
+      └── ensureWebhook()          → check if webhook URL is registered, register if missing
 
 packages/dashboard/
   Dockerfile

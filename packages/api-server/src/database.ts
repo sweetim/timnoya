@@ -5,7 +5,12 @@ import { fileURLToPath } from "node:url"
 import { desc, sql } from "drizzle-orm"
 import { drizzle } from "drizzle-orm/bun-sqlite"
 import { migrate } from "drizzle-orm/bun-sqlite/migrator"
-import { type BrightnessLog, brightnessLogs } from "./schema"
+import {
+  type BrightnessLog,
+  brightnessLogs,
+  type WebhookEvent,
+  webhookEvents,
+} from "./schema"
 
 const databasePath = process.env.DB_PATH || "/data/brightness.db"
 
@@ -108,4 +113,32 @@ export function getAggregatedHistory(mode: AggregationMode): AggregatedRow[] {
       row.brightness != null ? Math.round(row.brightness * 100) / 100 : null,
     battery: row.battery != null ? Math.round(row.battery * 100) / 100 : null,
   }))
+}
+
+export function insertWebhookEvent(
+  eventType: string,
+  eventVersion: string | null,
+  deviceType: string | null,
+  deviceMac: string | null,
+  payload: string,
+): void {
+  database
+    .insert(webhookEvents)
+    .values({
+      event_type: eventType,
+      event_version: eventVersion,
+      device_type: deviceType,
+      device_mac: deviceMac,
+      payload,
+    })
+    .run()
+}
+
+export function getWebhookHistory(limit = 100): WebhookEvent[] {
+  return database
+    .select()
+    .from(webhookEvents)
+    .orderBy(desc(webhookEvents.timestamp))
+    .limit(limit)
+    .all()
 }

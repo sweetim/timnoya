@@ -99,10 +99,17 @@ These endpoints are available in the SwitchBot API v1.1 but not currently used b
 | `/v1.1/devices/{deviceId}/commands` | POST | Send control commands to a device (e.g. setPosition, turnOn) |
 | `/v1.1/scenes` | GET | List all scenes |
 | `/v1.1/scenes/{sceneId}/execute` | POST | Execute a manual scene |
-| `/v1.1/webhook/setupWebhook` | POST | Configure a webhook URL |
-| `/v1.1/webhook/getWebhook` | POST | Query webhook configuration |
 | `/v1.1/webhook/updateWebhook` | POST | Update webhook configuration |
 | `/v1.1/webhook/deleteWebhook` | POST | Delete a webhook |
+
+## Webhook Endpoints (Used)
+
+These webhook endpoints are used by the project:
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/v1.1/webhook/setupWebhook` | POST | Register a webhook URL — used by `ensureWebhook()` on startup |
+| `/v1.1/webhook/getWebhook` | POST | Query existing webhook registrations — used to check if webhook is already registered |
 
 ## Types
 
@@ -141,3 +148,25 @@ When listed in the `/devices` response, Curtain 3 entries also include:
 | `curtainDevicesIds` | Array of paired/grouped Curtain device IDs |
 | `master` | Whether this is the master device in a group |
 | `openDirection` | The opening direction of the curtain |
+
+### WebhookEvent
+
+```typescript
+type WebhookEvent = {
+  id: number;
+  timestamp: string;
+  event_type: string;
+  event_version: string | null;
+  device_type: string | null;
+  device_mac: string | null;
+  payload: string;
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `event_type` | Type of event (e.g. `changeReport`) |
+| `event_version` | Event version string |
+| `device_type` | SwitchBot device type (e.g. `WoCurtain`) |
+| `device_mac` | Device MAC address |
+| `payload` | Full JSON payload as received from SwitchBot |

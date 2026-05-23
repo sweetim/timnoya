@@ -61,6 +61,18 @@ async function switchbotFetch<T>(path: string): Promise<SwitchBotResponse<T>> {
   return response.json() as Promise<SwitchBotResponse<T>>
 }
 
+async function switchbotPost<T>(
+  path: string,
+  body: Record<string, unknown>,
+): Promise<SwitchBotResponse<T>> {
+  const response = await fetch(`${BASE_URL}${path}`, {
+    method: "POST",
+    headers: buildHeaders(),
+    body: JSON.stringify(body),
+  })
+  return response.json() as Promise<SwitchBotResponse<T>>
+}
+
 export async function getDevices(): Promise<Device[]> {
   const data = await switchbotFetch<{
     deviceList: DeviceListEntry[]
@@ -126,4 +138,43 @@ export async function getAllDeviceStatuses(): Promise<DeviceStatus[]> {
   )
 
   return statuses
+}
+
+type WebhookEntry = {
+  url: string
+  deviceList: string
+  enable: boolean
+}
+
+export async function getRegisteredWebhooks(): Promise<WebhookEntry[]> {
+  const data = await switchbotPost<{ urls: WebhookEntry[] }>(
+    "/webhook/getWebhook",
+    {},
+  )
+
+  if (data.statusCode !== 100) {
+    throw new Error(
+      `SwitchBot getWebhook error: ${data.statusCode} - ${data.message}`,
+    )
+  }
+
+  return data.body.urls ?? []
+}
+
+export async function setupWebhook(
+  url: string,
+): Promise<{ statusCode: number; message: string; body: unknown }> {
+  const data = await switchbotPost<null>("/webhook/setupWebhook", {
+    action: "setupWebhook",
+    url,
+    deviceList: "ALL",
+  })
+
+  if (data.statusCode !== 100) {
+    throw new Error(
+      `SwitchBot setupWebhook error: ${data.statusCode} - ${data.message}`,
+    )
+  }
+
+  return { statusCode: data.statusCode, message: data.message, body: data.body }
 }

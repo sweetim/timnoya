@@ -40,6 +40,8 @@ services:
     image: ghcr.io/sweetim/timnoya/api-server:latest
     restart: unless-stopped
     env_file: .env
+    ports:
+      - "3010:3000"
     volumes:
       - ./data:/data
 

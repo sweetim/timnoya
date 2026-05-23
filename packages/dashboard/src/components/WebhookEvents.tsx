@@ -25,18 +25,19 @@ function PayloadPreview({ payload }: { payload: string }) {
   }
 
   return (
-    <div className="max-w-xs">
-      <button
-        type="button"
-        onClick={() => setExpanded(!expanded)}
-        className="text-left text-xs text-slate-400 hover:text-slate-200 transition-colors font-mono"
-      >
-        {expanded ? "Collapse" : "Expand"}
-      </button>
+    <button
+      type="button"
+      onClick={() => setExpanded(!expanded)}
+      aria-expanded={expanded}
+      aria-label={
+        expanded ? "Collapse webhook payload" : "Expand webhook payload"
+      }
+      className="block max-w-xs cursor-pointer border-0 bg-transparent p-0 text-left"
+    >
       {expanded && (
-        <pre className="mt-1 rounded-lg bg-dark-900 p-2 text-[10px] text-slate-300 overflow-x-auto whitespace-pre-wrap break-all">
+        <span className="block rounded-lg bg-dark-900 p-2 text-[10px] text-slate-300 overflow-x-auto whitespace-pre-wrap break-all">
           {JSON.stringify(parsed, null, 2)}
-        </pre>
+        </span>
       )}
       {!expanded && (
         <p className="mt-1 text-[10px] text-slate-600 truncate font-mono">
@@ -44,7 +45,7 @@ function PayloadPreview({ payload }: { payload: string }) {
           {JSON.stringify(parsed).length > 80 ? "..." : ""}
         </p>
       )}
-    </div>
+    </button>
   )
 }
 

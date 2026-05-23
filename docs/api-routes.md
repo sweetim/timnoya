@@ -14,6 +14,20 @@ Internal HTTP routes served by the Elysia API server.
 | POST | `/webhook/switchbot` | Receive SwitchBot webhook events and store to DB |
 | GET | `/webhook/events` | Query stored webhook events |
 
+## `/devices/status` Response
+
+Combines the SwitchBot `/devices` list with per-device status calls. Each row includes `deviceId` from the device list, display metadata, and device-specific status fields from SwitchBot. If a status fetch fails, the row still includes `deviceId` and has `error: true`.
+
+```typescript
+type DeviceStatus = {
+  deviceId: string;
+  name: string;
+  type: string;
+  kind: "physical" | "infrared";
+  error?: boolean;
+} & Record<string, unknown>;
+```
+
 ## `/sensors/brightness` Query Parameters
 
 | Parameter | Values | Default | Description |

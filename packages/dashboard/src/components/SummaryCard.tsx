@@ -51,7 +51,7 @@ export function SummaryCard({ devices }: SummaryCardProps) {
               const iconBg = deviceIconBg(device.type)
               return (
                 <div
-                  key={device.name}
+                  key={device.deviceId}
                   className="flex items-center gap-3 rounded-xl bg-white/[0.02] px-3 py-2 border border-white/[0.04]"
                 >
                   <div

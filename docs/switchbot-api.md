@@ -90,13 +90,38 @@ Fetches the status of a specific device. The response body shape varies by devic
 }
 ```
 
+### POST /devices/{deviceId}/commands
+
+Send a control command to a device.
+
+**Request body:**
+
+```json
+{
+  "command": "turnOn" | "turnOff" | ...,
+  "parameter": "default",
+  "commandType": "command"
+}
+```
+
+**Response:**
+
+```typescript
+{
+  statusCode: number;
+  message: string;
+  body: {};
+}
+```
+
+Implemented in `packages/api-server/src/switchbot.ts` → `sendDeviceCommand()`.
+
 ## Available Endpoints (Not Yet Used)
 
 These endpoints are available in the SwitchBot API v1.1 but not currently used by this project:
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/v1.1/devices/{deviceId}/commands` | POST | Send control commands to a device (e.g. setPosition, turnOn) |
 | `/v1.1/scenes` | GET | List all scenes |
 | `/v1.1/scenes/{sceneId}/execute` | POST | Execute a manual scene |
 | `/v1.1/webhook/updateWebhook` | POST | Update webhook configuration |
@@ -148,6 +173,20 @@ These webhook endpoints are used by the project:
 ```
 
 ## Types
+
+### Internal DeviceStatus
+
+`GET /devices/status` combines the SwitchBot device list with per-device status responses. `deviceId` is copied from `/devices`, so it is present even if an individual status request fails.
+
+```typescript
+type DeviceStatus = {
+  deviceId: string;
+  name: string;
+  type: string;
+  kind: "physical" | "infrared";
+  error?: boolean;
+} & Record<string, unknown>;
+```
 
 ### Curtain3Status
 

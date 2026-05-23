@@ -1,4 +1,5 @@
 export type DeviceStatus = {
+  deviceId: string
   name: string
   type: string
   kind: "physical" | "infrared"

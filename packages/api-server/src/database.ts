@@ -7,6 +7,8 @@ import { drizzle } from "drizzle-orm/bun-sqlite"
 import { migrate } from "drizzle-orm/bun-sqlite/migrator"
 import { createLogger } from "./logger"
 import {
+  type DeviceSwitchState,
+  deviceSwitchStates,
   type SensorReading,
   sensorReadings,
   type WebhookEvent,
@@ -222,6 +224,33 @@ export function getTemperatureHistory(mode: AggregationMode): TemperatureRow[] {
     humidity:
       row.humidity != null ? Math.round(row.humidity * 100) / 100 : null,
   }))
+}
+
+export { database }
+
+export function getSwitchState(
+  deviceId: string,
+): DeviceSwitchState | undefined {
+  return database
+    .select()
+    .from(deviceSwitchStates)
+    .where(sql`device_id = ${deviceId}`)
+    .get()
+}
+
+export function upsertSwitchState(
+  deviceId: string,
+  deviceName: string,
+  power: "on" | "off",
+): void {
+  database
+    .insert(deviceSwitchStates)
+    .values({ device_id: deviceId, device_name: deviceName, power })
+    .onConflictDoUpdate({
+      target: deviceSwitchStates.device_id,
+      set: { power, updated_at: sql`(datetime('now'))` },
+    })
+    .run()
 }
 
 export function getWebhookHistory(limit = 100): WebhookEvent[] {

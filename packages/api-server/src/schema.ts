@@ -22,5 +22,13 @@ export const webhookEvents = sqliteTable("webhook_events", {
   payload: text("payload").notNull(),
 })
 
+export const deviceSwitchStates = sqliteTable("device_switch_states", {
+  device_id: text("device_id").primaryKey(),
+  device_name: text("device_name").notNull(),
+  power: text("power").notNull().default("off"),
+  updated_at: text("updated_at").notNull().default(sql`(datetime('now'))`),
+})
+
 export type SensorReading = typeof sensorReadings.$inferSelect
 export type WebhookEvent = typeof webhookEvents.$inferSelect
+export type DeviceSwitchState = typeof deviceSwitchStates.$inferSelect

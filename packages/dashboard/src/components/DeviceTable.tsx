@@ -36,6 +36,9 @@ export function DeviceTable({ devices }: { devices: DeviceStatus[] }) {
                 Type
               </th>
               <th className="px-5 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                Device ID
+              </th>
+              <th className="px-5 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                 Kind
               </th>
               {extraKeys.map((key) => (
@@ -56,7 +59,7 @@ export function DeviceTable({ devices }: { devices: DeviceStatus[] }) {
 
               return (
                 <tr
-                  key={device.name}
+                  key={device.deviceId}
                   className="border-b border-white/5 last:border-0 transition-colors hover:bg-white/[0.02]"
                 >
                   <td className="sticky-device-col px-5 py-3.5">
@@ -76,6 +79,9 @@ export function DeviceTable({ devices }: { devices: DeviceStatus[] }) {
                   </td>
                   <td className="px-5 py-3.5 text-sm text-slate-400">
                     {device.type}
+                  </td>
+                  <td className="px-5 py-3.5 font-mono text-xs text-slate-500 whitespace-nowrap">
+                    {device.deviceId}
                   </td>
                   <td className="px-5 py-3.5">
                     <span

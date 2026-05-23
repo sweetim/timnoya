@@ -52,6 +52,7 @@ export type Device = {
 }
 
 export type DeviceStatus = {
+  deviceId: string
   name: string
   type: string
   kind: "physical" | "infrared"
@@ -134,14 +135,16 @@ export async function getAllDeviceStatuses(): Promise<DeviceStatus[]> {
       try {
         const status = await getDeviceStatus(device.deviceId)
         return {
+          ...status,
+          deviceId: device.deviceId,
           name: device.deviceName,
           type: device.deviceType,
           kind: device.kind,
-          ...status,
         }
       } catch (error) {
         log.warn(`Failed to get status for ${device.deviceName}:`, error)
         return {
+          deviceId: device.deviceId,
           name: device.deviceName,
           type: device.deviceType,
           kind: device.kind,
@@ -171,6 +174,28 @@ export async function getRegisteredWebhooks(): Promise<string[]> {
   }
 
   return data.body.urls ?? []
+}
+
+export async function sendDeviceCommand(
+  deviceId: string,
+  command: string,
+  parameter?: string,
+): Promise<{ statusCode: number; message: string }> {
+  const body: Record<string, unknown> = {
+    command,
+    parameter: parameter ?? "default",
+    commandType: "command",
+  }
+
+  const data = await switchbotPost<null>(`/devices/${deviceId}/commands`, body)
+
+  if (data.statusCode !== 100) {
+    const error = `SwitchBot command error for ${deviceId}: ${data.statusCode} - ${data.message}`
+    log.error(error)
+    throw new Error(error)
+  }
+
+  return { statusCode: data.statusCode, message: data.message }
 }
 
 export async function setupWebhook(

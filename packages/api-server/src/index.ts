@@ -10,6 +10,7 @@ import {
 } from "./database"
 import { startLightSensorPolling } from "./light-sensor"
 import { createLogger } from "./logger"
+import { handlePresenceEvent, initSwitchStates } from "./presence-handler"
 import { getAllDeviceStatuses, getDeviceStatus, getDevices } from "./switchbot"
 import { ensureWebhook } from "./webhook"
 
@@ -84,6 +85,16 @@ const app = new Elysia()
           humidity,
         )
       }
+
+      if ("detectionState" in context) {
+        await handlePresenceEvent({
+          detectionState: context.detectionState as string | undefined,
+          lightLevel:
+            context.lightLevel != null ? Number(context.lightLevel) : undefined,
+          deviceMac: context.deviceMac as string | undefined,
+          deviceType: context.deviceType as string | undefined,
+        })
+      }
     }
 
     return { statusCode: 100, message: "success" }
@@ -96,5 +107,6 @@ const app = new Elysia()
 
 startLightSensorPolling()
 ensureWebhook()
+initSwitchStates()
 
 log.info(`API server running at http://localhost:${app.server?.port}`)

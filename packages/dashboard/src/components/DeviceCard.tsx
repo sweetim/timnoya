@@ -33,6 +33,9 @@ export function DeviceCard({ device }: { device: DeviceStatus }) {
               {device.name}
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">{device.type}</p>
+            <p className="mt-1 max-w-[12rem] break-all font-mono text-[10px] text-slate-600 sm:max-w-[14rem]">
+              ID {device.deviceId}
+            </p>
           </div>
         </div>
         <span

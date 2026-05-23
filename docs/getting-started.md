@@ -14,6 +14,7 @@
 | `SWITCHBOT_SECRET_KEY` | api-server | Yes | SwitchBot API secret key for HMAC signing |
 | `PORT` | api-server | No | API server port (default: 3000) |
 | `DB_PATH` | api-server | No | SQLite DB path (default: `/data/brightness.db`) |
+| `KITCHEN_LIGHT_DEVICE_ID` | api-server | No* | SwitchBot device ID for the Kitchen Light (required for presence automation) |
 | `API_BASE_URL` | dashboard | No | API server URL for proxy (default: `http://localhost:3000`) |
 
 

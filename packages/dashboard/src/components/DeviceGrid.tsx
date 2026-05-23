@@ -89,7 +89,7 @@ export function DeviceGrid({
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {devices.map((device) => (
             <DeviceCard
-              key={device.name}
+              key={device.deviceId}
               device={device}
             />
           ))}
@@ -108,7 +108,7 @@ export function DeviceGrid({
             )
             return (
               <div
-                key={device.name}
+                key={device.deviceId}
                 className="glass-card compact-card aspect-square rounded-xl flex flex-col items-center justify-center gap-2 transition-all duration-300 group relative"
               >
                 <div
@@ -129,6 +129,9 @@ export function DeviceGrid({
                     {device.name}
                   </p>
                   <p className="text-xs text-slate-500 mb-2">{device.type}</p>
+                  <p className="mb-2 break-all font-mono text-[10px] text-slate-600">
+                    ID {device.deviceId}
+                  </p>
                   {device.error ? (
                     <p className="text-xs text-red-400">
                       Failed to fetch status

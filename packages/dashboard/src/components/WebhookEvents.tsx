@@ -25,21 +25,14 @@ function PayloadPreview({ payload }: { payload: string }) {
   }
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
+    <button
+      type="button"
       onClick={() => setExpanded(!expanded)}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault()
-          setExpanded(!expanded)
-        }
-      }}
       aria-expanded={expanded}
       aria-label={
         expanded ? "Collapse webhook payload" : "Expand webhook payload"
       }
-      className="w-full cursor-pointer"
+      className="block w-full cursor-pointer border-0 bg-transparent p-0 text-left"
     >
       {expanded ? (
         <pre className="w-full rounded-lg bg-dark-900 p-2 text-[10px] text-slate-300 overflow-x-auto whitespace-pre-wrap break-all">
@@ -51,7 +44,7 @@ function PayloadPreview({ payload }: { payload: string }) {
           {JSON.stringify(parsed).length > 80 ? "..." : ""}
         </p>
       )}
-    </div>
+    </button>
   )
 }
 

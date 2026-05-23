@@ -109,7 +109,43 @@ These webhook endpoints are used by the project:
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/v1.1/webhook/setupWebhook` | POST | Register a webhook URL — used by `ensureWebhook()` on startup |
-| `/v1.1/webhook/getWebhook` | POST | Query existing webhook registrations — used to check if webhook is already registered |
+| `/v1.1/webhook/queryWebhook` | POST | Query existing webhook URLs (action: `queryUrl`) — used to check if webhook is already registered |
+
+### POST /webhook/queryWebhook (queryUrl)
+
+**Request body:**
+
+```json
+{ "action": "queryUrl" }
+```
+
+**Response:**
+
+```typescript
+{
+  statusCode: number;
+  message: string;
+  body: { urls: string[] };
+}
+```
+
+### POST /webhook/setupWebhook
+
+**Request body:**
+
+```json
+{ "action": "setupWebhook", "url": "...", "deviceList": "ALL" }
+```
+
+**Response:**
+
+```typescript
+{
+  statusCode: number;
+  message: string;
+  body: {};
+}
+```
 
 ## Types
 

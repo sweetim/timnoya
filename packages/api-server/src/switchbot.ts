@@ -140,21 +140,15 @@ export async function getAllDeviceStatuses(): Promise<DeviceStatus[]> {
   return statuses
 }
 
-type WebhookEntry = {
-  url: string
-  deviceList: string
-  enable: boolean
-}
-
-export async function getRegisteredWebhooks(): Promise<WebhookEntry[]> {
-  const data = await switchbotPost<{ urls: WebhookEntry[] }>(
-    "/webhook/getWebhook",
-    {},
+export async function getRegisteredWebhooks(): Promise<string[]> {
+  const data = await switchbotPost<{ urls: string[] }>(
+    "/webhook/queryWebhook",
+    { action: "queryUrl" },
   )
 
   if (data.statusCode !== 100) {
     throw new Error(
-      `SwitchBot getWebhook error: ${data.statusCode} - ${data.message}`,
+      `SwitchBot queryWebhook error: ${data.statusCode} - ${data.message}`,
     )
   }
 

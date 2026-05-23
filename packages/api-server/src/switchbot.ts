@@ -1,4 +1,7 @@
 import { createHmac } from "node:crypto"
+import { createLogger } from "./logger"
+
+const log = createLogger("switchbot")
 
 const token = process.env.SWITCHBOT_TOKEN as string
 const secret = process.env.SWITCHBOT_SECRET_KEY as string
@@ -55,22 +58,28 @@ export type DeviceStatus = {
 } & Record<string, unknown>
 
 async function switchbotFetch<T>(path: string): Promise<SwitchBotResponse<T>> {
+  log.debug(`GET ${path}`)
   const response = await fetch(`${BASE_URL}${path}`, {
     headers: buildHeaders(),
   })
-  return response.json() as Promise<SwitchBotResponse<T>>
+  const data = (await response.json()) as SwitchBotResponse<T>
+  log.debug(`GET ${path} -> statusCode=${data.statusCode}`)
+  return data
 }
 
 async function switchbotPost<T>(
   path: string,
   body: Record<string, unknown>,
 ): Promise<SwitchBotResponse<T>> {
+  log.debug(`POST ${path}`)
   const response = await fetch(`${BASE_URL}${path}`, {
     method: "POST",
     headers: buildHeaders(),
     body: JSON.stringify(body),
   })
-  return response.json() as Promise<SwitchBotResponse<T>>
+  const data = (await response.json()) as SwitchBotResponse<T>
+  log.debug(`POST ${path} -> statusCode=${data.statusCode}`)
+  return data
 }
 
 export async function getDevices(): Promise<Device[]> {
@@ -80,7 +89,9 @@ export async function getDevices(): Promise<Device[]> {
   }>("/devices")
 
   if (data.statusCode !== 100) {
-    throw new Error(`SwitchBot API error: ${data.statusCode} - ${data.message}`)
+    const error = `SwitchBot API error: ${data.statusCode} - ${data.message}`
+    log.error(error)
+    throw new Error(error)
   }
 
   return [
@@ -107,7 +118,9 @@ export async function getDeviceStatus(
   )
 
   if (data.statusCode !== 100) {
-    throw new Error(`SwitchBot API error: ${data.statusCode} - ${data.message}`)
+    const error = `SwitchBot API error for device ${deviceId}: ${data.statusCode} - ${data.message}`
+    log.error(error)
+    throw new Error(error)
   }
 
   return data.body
@@ -126,7 +139,8 @@ export async function getAllDeviceStatuses(): Promise<DeviceStatus[]> {
           kind: device.kind,
           ...status,
         }
-      } catch {
+      } catch (error) {
+        log.warn(`Failed to get status for ${device.deviceName}:`, error)
         return {
           name: device.deviceName,
           type: device.deviceType,
@@ -146,10 +160,14 @@ export async function getRegisteredWebhooks(): Promise<string[]> {
     { action: "queryUrl" },
   )
 
+  if (data.statusCode === 190) {
+    return []
+  }
+
   if (data.statusCode !== 100) {
-    throw new Error(
-      `SwitchBot queryWebhook error: ${data.statusCode} - ${data.message}`,
-    )
+    const error = `SwitchBot queryWebhook error: ${data.statusCode} - ${data.message}`
+    log.error(error)
+    throw new Error(error)
   }
 
   return data.body.urls ?? []
@@ -165,9 +183,9 @@ export async function setupWebhook(
   })
 
   if (data.statusCode !== 100) {
-    throw new Error(
-      `SwitchBot setupWebhook error: ${data.statusCode} - ${data.message}`,
-    )
+    const error = `SwitchBot setupWebhook error: ${data.statusCode} - ${data.message}`
+    log.error(error)
+    throw new Error(error)
   }
 
   return { statusCode: data.statusCode, message: data.message, body: data.body }

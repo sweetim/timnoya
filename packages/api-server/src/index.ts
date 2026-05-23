@@ -7,12 +7,21 @@ import {
   insertWebhookEvent,
 } from "./database"
 import { startLightSensorPolling } from "./light-sensor"
+import { createLogger } from "./logger"
 import { getAllDeviceStatuses, getDeviceStatus, getDevices } from "./switchbot"
 import { ensureWebhook } from "./webhook"
+
+const log = createLogger("server")
 
 const VALID_AGGREGATIONS = new Set<string>(["raw", "hourly", "daily"])
 
 const app = new Elysia()
+  .onRequest(({ request }) => {
+    log.debug(`${request.method} ${new URL(request.url).pathname}`)
+  })
+  .onError(({ request, error }) => {
+    log.error(`${request.method} ${new URL(request.url).pathname} - ${error}`)
+  })
   .get("/devices", async () => {
     const devices = await getDevices()
     return { devices }
@@ -45,9 +54,7 @@ const app = new Elysia()
       JSON.stringify(payload),
     )
 
-    console.log(
-      `[webhook] Received event: ${payload.eventType} device=${context?.deviceMac ?? "unknown"}`,
-    )
+    log.info(`Received event: ${payload.eventType} device=${context?.deviceMac ?? "unknown"}`)
 
     return { statusCode: 100, message: "success" }
   })
@@ -60,4 +67,4 @@ const app = new Elysia()
 startLightSensorPolling()
 ensureWebhook()
 
-console.log(`API server running at http://localhost:${app.server?.port}`)
+log.info(`API server running at http://localhost:${app.server?.port}`)

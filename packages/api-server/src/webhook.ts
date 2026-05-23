@@ -1,5 +1,8 @@
 import { insertWebhookEvent } from "./database"
+import { createLogger } from "./logger"
 import { getRegisteredWebhooks, setupWebhook } from "./switchbot"
+
+const log = createLogger("webhook")
 
 const WEBHOOK_URL = "https://webhooks.timx.co/webhook/switchbot"
 
@@ -9,7 +12,7 @@ export async function ensureWebhook(): Promise<void> {
     const alreadyRegistered = webhooks.some((url) => url === WEBHOOK_URL)
 
     if (alreadyRegistered) {
-      console.log(`[webhook] ${WEBHOOK_URL} already registered, skipping`)
+      log.info(`${WEBHOOK_URL} already registered, skipping`)
       return
     }
 
@@ -24,8 +27,8 @@ export async function ensureWebhook(): Promise<void> {
         response,
       }),
     )
-    console.log(`[webhook] Registered ${WEBHOOK_URL} for all devices`)
+    log.info(`Registered ${WEBHOOK_URL} for all devices`)
   } catch (error) {
-    console.error("[webhook] Failed to ensure webhook:", error)
+    log.error("Failed to ensure webhook:", error)
   }
 }

@@ -49,7 +49,7 @@ curl http://localhost:3000/sensors/brightness?aggregation=daily
 
 ## `/webhook/switchbot` Webhook Receiver
 
-Receives `changeReport` events from SwitchBot. On server startup, `ensureWebhook()` checks if `https://webhooks.timx.co/webhook/switchbot` is already registered with SwitchBot; if not, it registers it with `deviceList: "ALL"`.
+Receives `changeReport` events from SwitchBot. Stores the full payload to `webhook_events` and, when the event contains `temperature` or `humidity`, also stores those values to `sensor_readings`. On server startup, `ensureWebhook()` checks if `https://webhooks.timx.co/webhook/switchbot` is already registered with SwitchBot; if not, it registers it with `deviceList: "ALL"`.
 
 Incoming payload shape:
 ```json

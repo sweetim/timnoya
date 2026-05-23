@@ -18,7 +18,7 @@
 | `packages/api-server/Dockerfile` | Docker build for API server |
 | `packages/api-server/src/index.ts` | Elysia server entry point — defines routes for device status API, webhook receiver, starts light sensor polling and webhook registration |
 | `packages/api-server/src/switchbot.ts` | SwitchBot API client — auth, device listing, status fetching, webhook management |
-| `packages/api-server/src/schema.ts` | Drizzle SQLite schema definitions (brightness_logs, webhook_events) |
+| `packages/api-server/src/schema.ts` | Drizzle SQLite schema definitions (sensor_readings, webhook_events) |
 | `packages/api-server/src/database.ts` | SQLite DB (Drizzle + bun:sqlite) — applies migrations, insert/query helpers |
 | `packages/api-server/src/light-sensor.ts` | Multi-device polling — discovers all devices with lightLevel or battery, logs readings every 10 min |
 | `packages/api-server/src/webhook.ts` | Webhook registration — checks if webhook URL is registered with SwitchBot, registers if missing |
@@ -64,10 +64,11 @@ packages/api-server/
       ├── getAllDeviceStatuses() → parallel status fetch for all devices
       ├── getRegisteredWebhooks() → fetch current webhook registrations
       └── setupWebhook()         → register webhook URL with SwitchBot
-    schema.ts               → Drizzle schema for brightness_logs (nullable brightness), webhook_events (raw payload + parsed fields)
+    schema.ts               → Drizzle schema for sensor_readings (nullable brightness, temperature, humidity, battery), webhook_events (raw payload + parsed fields)
     database.ts             → SQLite DB via Drizzle + bun:sqlite, runs migrations on startup
       ├── insertReading()        → insert a brightness/battery reading
-      ├── getBrightnessHistory() → query recent brightness logs (legacy, with limit)
+      ├── insertSensorReading()  → insert a temperature/humidity sensor reading
+      ├── getBrightnessHistory() → query recent sensor readings (legacy, with limit)
       ├── getAggregatedHistory() → query aggregated history by raw/hourly/daily mode
       ├── insertWebhookEvent()   → insert a parsed webhook event
       └── getWebhookHistory()    → query recent webhook events

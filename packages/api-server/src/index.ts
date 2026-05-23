@@ -4,6 +4,7 @@ import {
   getAggregatedHistory,
   getBrightnessHistory,
   getWebhookHistory,
+  insertSensorReading,
   insertWebhookEvent,
 } from "./database"
 import { startLightSensorPolling } from "./light-sensor"
@@ -57,6 +58,23 @@ const app = new Elysia()
     log.info(
       `Received event: ${payload.eventType} device=${context?.deviceMac ?? "unknown"}`,
     )
+
+    if (payload.eventType === "changeReport" && context) {
+      const temperature =
+        context.temperature !== undefined ? Number(context.temperature) : null
+      const humidity =
+        context.humidity !== undefined ? Number(context.humidity) : null
+
+      if (temperature !== null || humidity !== null) {
+        const deviceMac = String(context.deviceMac ?? "unknown")
+        insertSensorReading(
+          deviceMac,
+          context.deviceType ? String(context.deviceType) : deviceMac,
+          temperature,
+          humidity,
+        )
+      }
+    }
 
     return { statusCode: 100, message: "success" }
   })

@@ -7,8 +7,8 @@ import { drizzle } from "drizzle-orm/bun-sqlite"
 import { migrate } from "drizzle-orm/bun-sqlite/migrator"
 import { createLogger } from "./logger"
 import {
-  type BrightnessLog,
-  brightnessLogs,
+  type SensorReading,
+  sensorReadings,
   type WebhookEvent,
   webhookEvents,
 } from "./schema"
@@ -48,7 +48,7 @@ export function insertReading(
 ): void {
   try {
     database
-      .insert(brightnessLogs)
+      .insert(sensorReadings)
       .values({
         device_id: deviceId,
         device_name: deviceName,
@@ -61,11 +61,32 @@ export function insertReading(
   }
 }
 
-export function getBrightnessHistory(limit = 100): BrightnessLog[] {
+export function insertSensorReading(
+  deviceId: string,
+  deviceName: string,
+  temperature: number | null,
+  humidity: number | null,
+): void {
+  try {
+    database
+      .insert(sensorReadings)
+      .values({
+        device_id: deviceId,
+        device_name: deviceName,
+        temperature,
+        humidity,
+      })
+      .run()
+  } catch (error) {
+    log.error(`Failed to insert sensor reading for ${deviceId}:`, error)
+  }
+}
+
+export function getBrightnessHistory(limit = 100): SensorReading[] {
   return database
     .select()
-    .from(brightnessLogs)
-    .orderBy(desc(brightnessLogs.timestamp))
+    .from(sensorReadings)
+    .orderBy(desc(sensorReadings.timestamp))
     .limit(limit)
     .all()
 }
@@ -84,11 +105,11 @@ export function getAggregatedHistory(mode: AggregationMode): AggregatedRow[] {
   if (mode === "raw") {
     return database
       .select()
-      .from(brightnessLogs)
+      .from(sensorReadings)
       .where(
         sql`timestamp >= datetime('now', ${sql.raw(`'${config.timeRange}'`)})`,
       )
-      .orderBy(desc(brightnessLogs.timestamp))
+      .orderBy(desc(sensorReadings.timestamp))
       .all()
       .map((row) => ({
         timestamp: row.timestamp,
@@ -107,7 +128,7 @@ export function getAggregatedHistory(mode: AggregationMode): AggregatedRow[] {
         device_name,
         AVG(CAST(brightness AS REAL)) as brightness,
         AVG(battery) as battery
-      FROM brightness_logs
+      FROM sensor_readings
       WHERE timestamp >= datetime('now', '${config.timeRange}')
       GROUP BY strftime('${config.strftimeFormat}', timestamp), device_id
       ORDER BY timestamp ASC`,

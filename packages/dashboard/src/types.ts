@@ -32,3 +32,17 @@ export const KNOWN_FIELDS = new Set([
   "deviceId",
   "hubDeviceId",
 ])
+
+export type WebhookEvent = {
+  id: number
+  timestamp: string
+  event_type: string
+  event_version: string | null
+  device_type: string | null
+  device_mac: string | null
+  payload: string
+}
+
+export type WebhookEventsResponse = {
+  events: WebhookEvent[]
+}

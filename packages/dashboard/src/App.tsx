@@ -3,17 +3,23 @@ import { DeviceGrid } from "@/components/DeviceGrid"
 import { Header } from "@/components/Header"
 import { SensorReadings } from "@/components/SensorReadings"
 import type { ViewMode } from "@/components/ViewToggle"
+import { WebhookEvents } from "@/components/WebhookEvents"
 import type {
   AggregationMode,
   BrightnessHistoryResponse,
   BrightnessReading,
   DeviceStatus,
   StatusResponse,
+  WebhookEvent,
+  WebhookEventsResponse,
 } from "@/types"
 import "./index.css"
 
 const STORAGE_KEY = "timnoya-view-mode"
 const AGGREGATION_STORAGE_KEY = "timnoya-aggregation"
+const TAB_STORAGE_KEY = "timnoya-tab"
+
+type Tab = "dashboard" | "webhooks"
 
 function loadViewMode(): ViewMode {
   try {
@@ -33,6 +39,14 @@ function loadAggregation(): AggregationMode {
   return "hourly"
 }
 
+function loadTab(): Tab {
+  try {
+    const stored = localStorage.getItem(TAB_STORAGE_KEY)
+    if (stored === "dashboard" || stored === "webhooks") return stored
+  } catch {}
+  return "dashboard"
+}
+
 export function App() {
   const [devices, setDevices] = useState<DeviceStatus[]>([])
   const [readings, setReadings] = useState<BrightnessReading[]>([])
@@ -44,6 +58,9 @@ export function App() {
   const [viewMode, setViewMode] = useState<ViewMode>(loadViewMode)
   const [aggregation, setAggregation] =
     useState<AggregationMode>(loadAggregation)
+  const [tab, setTab] = useState<Tab>(loadTab)
+  const [webhookEvents, setWebhookEvents] = useState<WebhookEvent[]>([])
+  const [webhooksLoading, setWebhooksLoading] = useState(true)
 
   const fetchStatuses = useCallback(async () => {
     try {
@@ -77,16 +94,32 @@ export function App() {
     [aggregation],
   )
 
+  const fetchWebhookEvents = useCallback(async () => {
+    try {
+      setWebhooksLoading(true)
+      const res = await fetch("/api/webhook/events?limit=500")
+      if (!res.ok) return
+      const data: WebhookEventsResponse = await res.json()
+      setWebhookEvents(data.events)
+    } catch {
+    } finally {
+      setWebhooksLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
     fetchStatuses()
     fetchReadings()
+    fetchWebhookEvents()
     const interval = setInterval(fetchStatuses, 30_000)
     const readingsInterval = setInterval(() => fetchReadings(), 5 * 60_000)
+    const webhookInterval = setInterval(() => fetchWebhookEvents(), 5 * 60_000)
     return () => {
       clearInterval(interval)
       clearInterval(readingsInterval)
+      clearInterval(webhookInterval)
     }
-  }, [fetchStatuses, fetchReadings])
+  }, [fetchStatuses, fetchReadings, fetchWebhookEvents])
 
   const handleRefresh = () => {
     setRefreshing(true)
@@ -108,6 +141,13 @@ export function App() {
     fetchReadings(mode)
   }
 
+  const handleTabChange = (newTab: Tab) => {
+    setTab(newTab)
+    try {
+      localStorage.setItem(TAB_STORAGE_KEY, newTab)
+    } catch {}
+  }
+
   return (
     <div className="min-h-screen bg-dark-900">
       <Header
@@ -115,21 +155,58 @@ export function App() {
         refreshing={refreshing}
         onRefresh={handleRefresh}
       />
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
-        <SensorReadings
-          readings={readings}
-          loading={readingsLoading}
-          aggregation={aggregation}
-          onAggregationChange={handleAggregationChange}
-        />
+      <div className="mx-auto max-w-7xl px-4 pt-4 sm:px-6 sm:pt-6">
+        <div className="flex gap-1 rounded-xl bg-dark-800 p-1 w-fit mb-6">
+          <button
+            type="button"
+            onClick={() => handleTabChange("dashboard")}
+            className={`rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${
+              tab === "dashboard"
+                ? "bg-white/10 text-white"
+                : "text-slate-500 hover:text-slate-300"
+            }`}
+          >
+            Dashboard
+          </button>
+          <button
+            type="button"
+            onClick={() => handleTabChange("webhooks")}
+            className={`rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${
+              tab === "webhooks"
+                ? "bg-white/10 text-white"
+                : "text-slate-500 hover:text-slate-300"
+            }`}
+          >
+            Webhooks
+          </button>
+        </div>
       </div>
-      <DeviceGrid
-        devices={devices}
-        loading={loading}
-        error={error}
-        viewMode={viewMode}
-        onViewModeChange={handleViewModeChange}
-      />
+      {tab === "dashboard" ? (
+        <>
+          <div className="mx-auto max-w-7xl px-4 pb-6 sm:px-6 sm:pb-8">
+            <SensorReadings
+              readings={readings}
+              loading={readingsLoading}
+              aggregation={aggregation}
+              onAggregationChange={handleAggregationChange}
+            />
+          </div>
+          <DeviceGrid
+            devices={devices}
+            loading={loading}
+            error={error}
+            viewMode={viewMode}
+            onViewModeChange={handleViewModeChange}
+          />
+        </>
+      ) : (
+        <div className="mx-auto max-w-7xl px-4 pb-6 sm:px-6 sm:pb-8">
+          <WebhookEvents
+            events={webhookEvents}
+            loading={webhooksLoading}
+          />
+        </div>
+      )}
     </div>
   )
 }

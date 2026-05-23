@@ -31,8 +31,8 @@
 | `packages/dashboard/src/index.html` | HTML entry point for the dashboard SPA |
 | `packages/dashboard/src/frontend.tsx` | React DOM mount point (StrictMode + HMR-aware root) |
 | `packages/dashboard/src/index.css` | Global styles — Tailwind v4 import, custom theme, glass/shimmer/badge utilities |
-| `packages/dashboard/src/App.tsx` | Dashboard shell — fetches `/api/devices/status` and `/api/sensors/brightness`, renders Header + DeviceGrid + SensorReadings, auto-refreshes every 30s / 5min, persists view mode in localStorage |
-| `packages/dashboard/src/types.ts` | Shared types — `DeviceStatus` (with `kind` field), `StatusResponse`, `BrightnessReading`, `BrightnessHistoryResponse`, `AggregationMode`, `KNOWN_FIELDS` set (includes `deviceId`, `hubDeviceId`) |
+| `packages/dashboard/src/App.tsx` | Dashboard shell — tab navigation (Dashboard/Webhooks), fetches `/api/devices/status`, `/api/sensors/brightness`, `/api/webhook/events`, renders Header + SensorReadings + DeviceGrid or WebhookEvents, auto-refreshes every 30s / 5min, persists view mode and tab in localStorage |
+| `packages/dashboard/src/types.ts` | Shared types — `DeviceStatus` (with `kind` field), `StatusResponse`, `BrightnessReading`, `BrightnessHistoryResponse`, `AggregationMode`, `WebhookEvent`, `WebhookEventsResponse`, `KNOWN_FIELDS` set (includes `deviceId`, `hubDeviceId`) |
 | `packages/dashboard/src/logo.svg` | Favicon SVG |
 | `packages/dashboard/src/components/DeviceCard.tsx` | Single device card — icon, name, type badge, dynamic status fields |
 | `packages/dashboard/src/components/DeviceGrid.tsx` | Main content area — SummaryCard, ViewToggle, renders card/table/compact views with loading skeletons and empty/error states |
@@ -42,6 +42,7 @@
 | `packages/dashboard/src/components/SkeletonTable.tsx` | Shimmer loading placeholder for table view |
 | `packages/dashboard/src/components/SummaryCard.tsx` | Summary stats — total device count and battery status list |
 | `packages/dashboard/src/components/SensorReadings.tsx` | Line chart (recharts) showing brightness and battery history per device with aggregation toggle (raw/hourly/daily) |
+| `packages/dashboard/src/components/WebhookEvents.tsx` | Webhook events table with pagination and expandable payload preview |
 | `packages/dashboard/src/components/ViewToggle.tsx` | View mode toggle — card/table/compact switcher |
 | `packages/dashboard/src/lib/device-utils.tsx` | Device type helpers — icon/color/bg mapping, formatValue, BatteryIndicator, PositionIndicator, BooleanBadge, compactStatusIcons |
 

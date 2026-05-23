@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react"
 import { DeviceGrid } from "@/components/DeviceGrid"
 import { Header } from "@/components/Header"
 import { SensorReadings } from "@/components/SensorReadings"
+import { TemperatureHumidity } from "@/components/TemperatureHumidity"
 import type { ViewMode } from "@/components/ViewToggle"
 import { WebhookEvents } from "@/components/WebhookEvents"
 import type {
@@ -10,6 +11,8 @@ import type {
   BrightnessReading,
   DeviceStatus,
   StatusResponse,
+  TemperatureHistoryResponse,
+  TemperatureReading,
   WebhookEvent,
   WebhookEventsResponse,
 } from "@/types"
@@ -17,6 +20,7 @@ import "./index.css"
 
 const STORAGE_KEY = "timnoya-view-mode"
 const AGGREGATION_STORAGE_KEY = "timnoya-aggregation"
+const TEMP_AGGREGATION_STORAGE_KEY = "timnoya-temp-aggregation"
 const TAB_STORAGE_KEY = "timnoya-tab"
 
 type Tab = "dashboard" | "webhooks"
@@ -39,6 +43,15 @@ function loadAggregation(): AggregationMode {
   return "hourly"
 }
 
+function loadTemperatureAggregation(): AggregationMode {
+  try {
+    const stored = localStorage.getItem(TEMP_AGGREGATION_STORAGE_KEY)
+    if (stored === "raw" || stored === "hourly" || stored === "daily")
+      return stored
+  } catch {}
+  return "hourly"
+}
+
 function loadTab(): Tab {
   try {
     const stored = localStorage.getItem(TAB_STORAGE_KEY)
@@ -50,14 +63,21 @@ function loadTab(): Tab {
 export function App() {
   const [devices, setDevices] = useState<DeviceStatus[]>([])
   const [readings, setReadings] = useState<BrightnessReading[]>([])
+  const [temperatureReadings, setTemperatureReadings] = useState<
+    TemperatureReading[]
+  >([])
   const [loading, setLoading] = useState(true)
   const [readingsLoading, setReadingsLoading] = useState(true)
+  const [temperatureReadingsLoading, setTemperatureReadingsLoading] =
+    useState(true)
   const [error, setError] = useState<string | null>(null)
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [viewMode, setViewMode] = useState<ViewMode>(loadViewMode)
   const [aggregation, setAggregation] =
     useState<AggregationMode>(loadAggregation)
+  const [temperatureAggregation, setTemperatureAggregation] =
+    useState<AggregationMode>(loadTemperatureAggregation)
   const [tab, setTab] = useState<Tab>(loadTab)
   const [webhookEvents, setWebhookEvents] = useState<WebhookEvent[]>([])
   const [webhooksLoading, setWebhooksLoading] = useState(true)
@@ -94,6 +114,22 @@ export function App() {
     [aggregation],
   )
 
+  const fetchTemperatureReadings = useCallback(
+    async (mode: AggregationMode = temperatureAggregation) => {
+      try {
+        setTemperatureReadingsLoading(true)
+        const res = await fetch(`/api/sensors/temperature?aggregation=${mode}`)
+        if (!res.ok) return
+        const data: TemperatureHistoryResponse = await res.json()
+        setTemperatureReadings(data.history)
+      } catch {
+      } finally {
+        setTemperatureReadingsLoading(false)
+      }
+    },
+    [temperatureAggregation],
+  )
+
   const fetchWebhookEvents = useCallback(async () => {
     try {
       setWebhooksLoading(true)
@@ -110,16 +146,27 @@ export function App() {
   useEffect(() => {
     fetchStatuses()
     fetchReadings()
+    fetchTemperatureReadings()
     fetchWebhookEvents()
     const interval = setInterval(fetchStatuses, 30_000)
     const readingsInterval = setInterval(() => fetchReadings(), 5 * 60_000)
+    const temperatureReadingsInterval = setInterval(
+      () => fetchTemperatureReadings(),
+      5 * 60_000,
+    )
     const webhookInterval = setInterval(() => fetchWebhookEvents(), 5 * 60_000)
     return () => {
       clearInterval(interval)
       clearInterval(readingsInterval)
+      clearInterval(temperatureReadingsInterval)
       clearInterval(webhookInterval)
     }
-  }, [fetchStatuses, fetchReadings, fetchWebhookEvents])
+  }, [
+    fetchStatuses,
+    fetchReadings,
+    fetchTemperatureReadings,
+    fetchWebhookEvents,
+  ])
 
   const handleRefresh = () => {
     setRefreshing(true)
@@ -139,6 +186,14 @@ export function App() {
       localStorage.setItem(AGGREGATION_STORAGE_KEY, mode)
     } catch {}
     fetchReadings(mode)
+  }
+
+  const handleTemperatureAggregationChange = (mode: AggregationMode) => {
+    setTemperatureAggregation(mode)
+    try {
+      localStorage.setItem(TEMP_AGGREGATION_STORAGE_KEY, mode)
+    } catch {}
+    fetchTemperatureReadings(mode)
   }
 
   const handleTabChange = (newTab: Tab) => {
@@ -183,7 +238,13 @@ export function App() {
       </div>
       {tab === "dashboard" ? (
         <>
-          <div className="mx-auto max-w-7xl px-4 pb-6 sm:px-6 sm:pb-8">
+          <div className="mx-auto max-w-7xl space-y-6 px-4 pb-6 sm:px-6 sm:pb-8">
+            <TemperatureHumidity
+              readings={temperatureReadings}
+              loading={temperatureReadingsLoading}
+              aggregation={temperatureAggregation}
+              onAggregationChange={handleTemperatureAggregationChange}
+            />
             <SensorReadings
               readings={readings}
               loading={readingsLoading}

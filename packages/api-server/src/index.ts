@@ -3,6 +3,7 @@ import {
   type AggregationMode,
   getAggregatedHistory,
   getBrightnessHistory,
+  getTemperatureHistory,
   getWebhookHistory,
   insertSensorReading,
   insertWebhookEvent,
@@ -42,6 +43,15 @@ const app = new Elysia()
     }
     const limit = query.limit ? Number(query.limit) : 100
     return { history: getBrightnessHistory(limit) }
+  })
+  .get("/sensors/temperature", ({ query }) => {
+    const aggregation = query.aggregation
+    if (aggregation && VALID_AGGREGATIONS.has(aggregation)) {
+      return {
+        history: getTemperatureHistory(aggregation as AggregationMode),
+      }
+    }
+    return { history: getTemperatureHistory("hourly") }
   })
   .post("/webhook/switchbot", async ({ body }) => {
     const payload = body as Record<string, unknown>

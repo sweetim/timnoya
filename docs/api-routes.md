@@ -10,6 +10,7 @@ Internal HTTP routes served by the Elysia API server.
 | GET | `/devices/status` | Fetch and return status for all devices |
 | GET | `/devices/:deviceId/status` | Fetch and return status for a specific device |
 | GET | `/sensors/brightness` | Query brightness/battery history with optional aggregation |
+| GET | `/sensors/temperature` | Query temperature/humidity history with optional aggregation |
 | POST | `/webhook/switchbot` | Receive SwitchBot webhook events and store to DB |
 | GET | `/webhook/events` | Query stored webhook events |
 
@@ -19,6 +20,12 @@ Internal HTTP routes served by the Elysia API server.
 |-----------|--------|---------|-------------|
 | `aggregation` | `raw`, `hourly`, `daily` | *(legacy mode)* | Aggregation mode with auto-selected time range |
 | `limit` | number | 100 | Only used when `aggregation` is omitted (legacy mode) |
+
+## `/sensors/temperature` Query Parameters
+
+| Parameter | Values | Default | Description |
+|-----------|--------|---------|-------------|
+| `aggregation` | `raw`, `hourly`, `daily` | `hourly` | Aggregation mode with auto-selected time range |
 
 ### Aggregation Modes
 
@@ -39,6 +46,10 @@ curl http://localhost:3000/sensors/brightness?limit=50
 curl http://localhost:3000/sensors/brightness?aggregation=raw
 curl http://localhost:3000/sensors/brightness?aggregation=hourly
 curl http://localhost:3000/sensors/brightness?aggregation=daily
+curl http://localhost:3000/sensors/temperature
+curl http://localhost:3000/sensors/temperature?aggregation=raw
+curl http://localhost:3000/sensors/temperature?aggregation=hourly
+curl http://localhost:3000/sensors/temperature?aggregation=daily
 ```
 
 ## `/webhook/events` Query Parameters

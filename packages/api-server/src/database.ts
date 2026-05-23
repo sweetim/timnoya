@@ -168,6 +168,62 @@ export function insertWebhookEvent(
   }
 }
 
+type TemperatureRow = {
+  timestamp: string
+  device_id: string
+  device_name: string
+  temperature: number | null
+  humidity: number | null
+}
+
+export function getTemperatureHistory(mode: AggregationMode): TemperatureRow[] {
+  const config = AGGREGATION_CONFIG[mode]
+
+  if (mode === "raw") {
+    return database
+      .select()
+      .from(sensorReadings)
+      .where(
+        sql`timestamp >= datetime('now', ${sql.raw(`'${config.timeRange}'`)}) AND (temperature IS NOT NULL OR humidity IS NOT NULL)`,
+      )
+      .orderBy(desc(sensorReadings.timestamp))
+      .all()
+      .map((row) => ({
+        timestamp: row.timestamp,
+        device_id: row.device_id,
+        device_name: row.device_name,
+        temperature: row.temperature,
+        humidity: row.humidity,
+      }))
+  }
+
+  const rows = sqliteDatabase
+    .prepare(
+      `SELECT
+        strftime('${config.strftimeFormat}', timestamp) as timestamp,
+        device_id,
+        device_name,
+        AVG(temperature) as temperature,
+        AVG(humidity) as humidity
+      FROM sensor_readings
+      WHERE timestamp >= datetime('now', '${config.timeRange}')
+        AND (temperature IS NOT NULL OR humidity IS NOT NULL)
+      GROUP BY strftime('${config.strftimeFormat}', timestamp), device_id
+      ORDER BY timestamp ASC`,
+    )
+    .all() as TemperatureRow[]
+
+  return rows.map((row) => ({
+    timestamp: row.timestamp,
+    device_id: row.device_id,
+    device_name: row.device_name,
+    temperature:
+      row.temperature != null ? Math.round(row.temperature * 100) / 100 : null,
+    humidity:
+      row.humidity != null ? Math.round(row.humidity * 100) / 100 : null,
+  }))
+}
+
 export function getWebhookHistory(limit = 100): WebhookEvent[] {
   return database
     .select()

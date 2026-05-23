@@ -46,3 +46,15 @@ export type WebhookEvent = {
 export type WebhookEventsResponse = {
   events: WebhookEvent[]
 }
+
+export type TemperatureReading = {
+  timestamp: string
+  device_id: string
+  device_name: string
+  temperature: number | null
+  humidity: number | null
+}
+
+export type TemperatureHistoryResponse = {
+  history: TemperatureReading[]
+}

@@ -16,7 +16,7 @@ Internal HTTP routes served by the Elysia API server.
 
 ## `/devices/status` Response
 
-Combines the SwitchBot `/devices` list with per-device status calls. Each row includes `deviceId` from the device list, display metadata, and device-specific status fields from SwitchBot. If a status fetch fails, the row still includes `deviceId` and has `error: true`.
+Combines the SwitchBot `/devices` list with per-device status calls. Physical devices include status fields from SwitchBot. Infrared devices are included with basic info only (no status fields). If a status fetch fails for a physical device, the row still includes `deviceId` and has `error: true`.
 
 ```typescript
 type DeviceStatus = {

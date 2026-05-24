@@ -130,7 +130,7 @@ export async function getDeviceStatus(
 export async function getAllDeviceStatuses(): Promise<DeviceStatus[]> {
   const devices = await getDevices()
 
-  const statuses = await Promise.all(
+  const physicalStatuses = await Promise.all(
     devices
       .filter((device) => device.kind !== "infrared")
       .map(async (device) => {
@@ -156,7 +156,16 @@ export async function getAllDeviceStatuses(): Promise<DeviceStatus[]> {
       }),
   )
 
-  return statuses
+  const infraredDevices = devices
+    .filter((device) => device.kind === "infrared")
+    .map((device) => ({
+      deviceId: device.deviceId,
+      name: device.deviceName,
+      type: device.deviceType,
+      kind: device.kind as "infrared",
+    }))
+
+  return [...physicalStatuses, ...infraredDevices]
 }
 
 export async function getRegisteredWebhooks(): Promise<string[]> {

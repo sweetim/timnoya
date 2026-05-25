@@ -10,7 +10,9 @@ import {
   type DeviceSwitchState,
   deviceSwitchStates,
   type SensorReading,
+  type SwitchLogEntry,
   sensorReadings,
+  switchLog,
   type WebhookEvent,
   webhookEvents,
 } from "./schema"
@@ -258,6 +260,36 @@ export function getWebhookHistory(limit = 100): WebhookEvent[] {
     .select()
     .from(webhookEvents)
     .orderBy(desc(webhookEvents.timestamp))
+    .limit(limit)
+    .all()
+}
+
+export function getAllSwitchStates(): DeviceSwitchState[] {
+  return database.select().from(deviceSwitchStates).all()
+}
+
+export function insertSwitchLog(
+  deviceId: string,
+  deviceName: string,
+  action: "on" | "off",
+  triggerReason: string | null,
+): void {
+  database
+    .insert(switchLog)
+    .values({
+      device_id: deviceId,
+      device_name: deviceName,
+      action,
+      trigger_reason: triggerReason,
+    })
+    .run()
+}
+
+export function getSwitchLog(limit = 100): SwitchLogEntry[] {
+  return database
+    .select()
+    .from(switchLog)
+    .orderBy(desc(switchLog.timestamp))
     .limit(limit)
     .all()
 }

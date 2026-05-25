@@ -59,3 +59,27 @@ export type TemperatureReading = {
 export type TemperatureHistoryResponse = {
   history: TemperatureReading[]
 }
+
+export type SwitchState = {
+  device_id: string
+  device_name: string
+  power: string
+  updated_at: string
+}
+
+export type SwitchesResponse = {
+  switches: SwitchState[]
+}
+
+export type SwitchLogEntry = {
+  id: number
+  timestamp: string
+  device_id: string
+  device_name: string
+  action: string
+  trigger_reason: string | null
+}
+
+export type SwitchLogResponse = {
+  log: SwitchLogEntry[]
+}

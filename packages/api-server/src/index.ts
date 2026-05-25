@@ -2,7 +2,9 @@ import { Elysia } from "elysia"
 import {
   type AggregationMode,
   getAggregatedHistory,
+  getAllSwitchStates,
   getBrightnessHistory,
+  getSwitchLog,
   getTemperatureHistory,
   getWebhookHistory,
   insertSensorReading,
@@ -102,6 +104,13 @@ const app = new Elysia()
   .get("/webhook/events", ({ query }) => {
     const limit = query.limit ? Number(query.limit) : 100
     return { events: getWebhookHistory(limit) }
+  })
+  .get("/switches", () => {
+    return { switches: getAllSwitchStates() }
+  })
+  .get("/switches/log", ({ query }) => {
+    const limit = query.limit ? Number(query.limit) : 100
+    return { log: getSwitchLog(limit) }
   })
   .listen(process.env.PORT ? Number(process.env.PORT) : 3000)
 

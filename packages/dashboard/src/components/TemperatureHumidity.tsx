@@ -250,35 +250,35 @@ export function TemperatureHumidity({
           />
           {hasTemperature
             && devices.map(([deviceId, deviceName]) => (
-                <Line
-                  key={`${deviceId}_temperature`}
-                  yAxisId="temperature"
-                  type="monotone"
-                  dataKey={`${deviceId}_temperature`}
-                  name={`${deviceName} temperature`}
-                  stroke="#fb923c"
-                  strokeWidth={2}
-                  dot={false}
-                  connectNulls
-                  hide={hiddenDevices.has(deviceId)}
-                />
-              ))}
+              <Line
+                key={`${deviceId}_temperature`}
+                yAxisId="temperature"
+                type="monotone"
+                dataKey={`${deviceId}_temperature`}
+                name={`${deviceName} temperature`}
+                stroke="#fb923c"
+                strokeWidth={2}
+                dot={false}
+                connectNulls
+                hide={hiddenDevices.has(deviceId)}
+              />
+            ))}
           {hasHumidity
             && devices.map(([deviceId, deviceName]) => (
-                <Line
-                  key={`${deviceId}_humidity`}
-                  yAxisId="humidity"
-                  type="monotone"
-                  dataKey={`${deviceId}_humidity`}
-                  name={`${deviceName} humidity`}
-                  stroke="#60a5fa"
-                  strokeDasharray="4 4"
-                  strokeWidth={2}
-                  dot={false}
-                  connectNulls
-                  hide={hiddenDevices.has(deviceId)}
-                />
-              ))}
+              <Line
+                key={`${deviceId}_humidity`}
+                yAxisId="humidity"
+                type="monotone"
+                dataKey={`${deviceId}_humidity`}
+                name={`${deviceName} humidity`}
+                stroke="#60a5fa"
+                strokeDasharray="4 4"
+                strokeWidth={2}
+                dot={false}
+                connectNulls
+                hide={hiddenDevices.has(deviceId)}
+              />
+            ))}
         </LineChart>
       </ResponsiveContainer>
     </div>

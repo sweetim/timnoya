@@ -1,4 +1,4 @@
-import { getSwitchState, upsertSwitchState } from "./database"
+import { getSwitchState, insertSwitchLog, upsertSwitchState } from "./database"
 import { createLogger } from "./logger"
 import { sendDeviceCommand } from "./switchbot"
 
@@ -69,6 +69,12 @@ export async function handlePresenceEvent(
         KITCHEN_LIGHT_DEVICE_NAME,
         "on",
       )
+      insertSwitchLog(
+        KITCHEN_LIGHT_DEVICE_ID,
+        KITCHEN_LIGHT_DEVICE_NAME,
+        "on",
+        `motion detected, lightLevel=${lightLevel}`,
+      )
       log.info("Kitchen light turned on, state updated")
     } catch (error) {
       log.error("Failed to turn on kitchen light:", error)
@@ -86,6 +92,12 @@ export async function handlePresenceEvent(
         KITCHEN_LIGHT_DEVICE_ID,
         KITCHEN_LIGHT_DEVICE_NAME,
         "off",
+      )
+      insertSwitchLog(
+        KITCHEN_LIGHT_DEVICE_ID,
+        KITCHEN_LIGHT_DEVICE_NAME,
+        "off",
+        "motion not detected",
       )
       log.info("Kitchen light turned off, state updated")
     } catch (error) {

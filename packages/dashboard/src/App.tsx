@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react"
 import { DeviceGrid } from "@/components/DeviceGrid"
 import { Header } from "@/components/Header"
 import { SensorReadings } from "@/components/SensorReadings"
+import { SwitchStatus } from "@/components/SwitchStatus"
 import { TemperatureHumidity } from "@/components/TemperatureHumidity"
 import type { ViewMode } from "@/components/ViewToggle"
 import { WebhookEvents } from "@/components/WebhookEvents"
@@ -11,6 +12,10 @@ import type {
   BrightnessReading,
   DeviceStatus,
   StatusResponse,
+  SwitchesResponse,
+  SwitchLogEntry,
+  SwitchLogResponse,
+  SwitchState,
   TemperatureHistoryResponse,
   TemperatureReading,
   WebhookEvent,
@@ -23,7 +28,7 @@ const AGGREGATION_STORAGE_KEY = "timnoya-aggregation"
 const TEMP_AGGREGATION_STORAGE_KEY = "timnoya-temp-aggregation"
 const TAB_STORAGE_KEY = "timnoya-tab"
 
-type Tab = "dashboard" | "webhooks"
+type Tab = "dashboard" | "webhooks" | "switches"
 
 function loadViewMode(): ViewMode {
   try {
@@ -55,7 +60,12 @@ function loadTemperatureAggregation(): AggregationMode {
 function loadTab(): Tab {
   try {
     const stored = localStorage.getItem(TAB_STORAGE_KEY)
-    if (stored === "dashboard" || stored === "webhooks") return stored
+    if (
+      stored === "dashboard"
+      || stored === "webhooks"
+      || stored === "switches"
+    )
+      return stored
   } catch {}
   return "dashboard"
 }
@@ -81,6 +91,10 @@ export function App() {
   const [tab, setTab] = useState<Tab>(loadTab)
   const [webhookEvents, setWebhookEvents] = useState<WebhookEvent[]>([])
   const [webhooksLoading, setWebhooksLoading] = useState(true)
+  const [switchStates, setSwitchStates] = useState<SwitchState[]>([])
+  const [switchesLoading, setSwitchesLoading] = useState(true)
+  const [switchLog, setSwitchLog] = useState<SwitchLogEntry[]>([])
+  const [switchLogLoading, setSwitchLogLoading] = useState(true)
 
   const fetchStatuses = useCallback(async () => {
     try {
@@ -143,11 +157,39 @@ export function App() {
     }
   }, [])
 
+  const fetchSwitches = useCallback(async () => {
+    try {
+      setSwitchesLoading(true)
+      const res = await fetch("/api/switches")
+      if (!res.ok) return
+      const data: SwitchesResponse = await res.json()
+      setSwitchStates(data.switches)
+    } catch {
+    } finally {
+      setSwitchesLoading(false)
+    }
+  }, [])
+
+  const fetchSwitchLog = useCallback(async () => {
+    try {
+      setSwitchLogLoading(true)
+      const res = await fetch("/api/switches/log?limit=500")
+      if (!res.ok) return
+      const data: SwitchLogResponse = await res.json()
+      setSwitchLog(data.log)
+    } catch {
+    } finally {
+      setSwitchLogLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
     fetchStatuses()
     fetchReadings()
     fetchTemperatureReadings()
     fetchWebhookEvents()
+    fetchSwitches()
+    fetchSwitchLog()
     const interval = setInterval(fetchStatuses, 30_000)
     const readingsInterval = setInterval(() => fetchReadings(), 5 * 60_000)
     const temperatureReadingsInterval = setInterval(
@@ -155,17 +197,24 @@ export function App() {
       5 * 60_000,
     )
     const webhookInterval = setInterval(() => fetchWebhookEvents(), 5 * 60_000)
+    const switchInterval = setInterval(() => {
+      fetchSwitches()
+      fetchSwitchLog()
+    }, 5 * 60_000)
     return () => {
       clearInterval(interval)
       clearInterval(readingsInterval)
       clearInterval(temperatureReadingsInterval)
       clearInterval(webhookInterval)
+      clearInterval(switchInterval)
     }
   }, [
     fetchStatuses,
     fetchReadings,
     fetchTemperatureReadings,
     fetchWebhookEvents,
+    fetchSwitches,
+    fetchSwitchLog,
   ])
 
   const handleRefresh = () => {
@@ -234,6 +283,17 @@ export function App() {
           >
             Webhooks
           </button>
+          <button
+            type="button"
+            onClick={() => handleTabChange("switches")}
+            className={`rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${
+              tab === "switches"
+                ? "bg-white/10 text-white"
+                : "text-slate-500 hover:text-slate-300"
+            }`}
+          >
+            Switches
+          </button>
         </div>
       </div>
       {tab === "dashboard" ? (
@@ -260,11 +320,20 @@ export function App() {
             onViewModeChange={handleViewModeChange}
           />
         </>
-      ) : (
+      ) : tab === "webhooks" ? (
         <div className="mx-auto max-w-7xl px-4 pb-6 sm:px-6 sm:pb-8">
           <WebhookEvents
             events={webhookEvents}
             loading={webhooksLoading}
+          />
+        </div>
+      ) : (
+        <div className="mx-auto max-w-7xl px-4 pb-6 sm:px-6 sm:pb-8">
+          <SwitchStatus
+            switches={switchStates}
+            switchLog={switchLog}
+            loading={switchesLoading}
+            logLoading={switchLogLoading}
           />
         </div>
       )}

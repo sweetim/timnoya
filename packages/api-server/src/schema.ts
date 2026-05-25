@@ -29,6 +29,16 @@ export const deviceSwitchStates = sqliteTable("device_switch_states", {
   updated_at: text("updated_at").notNull().default(sql`(datetime('now'))`),
 })
 
+export const switchLog = sqliteTable("switch_log", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  timestamp: text("timestamp").notNull().default(sql`(datetime('now'))`),
+  device_id: text("device_id").notNull(),
+  device_name: text("device_name").notNull(),
+  action: text("action").notNull(),
+  trigger_reason: text("trigger_reason"),
+})
+
 export type SensorReading = typeof sensorReadings.$inferSelect
 export type WebhookEvent = typeof webhookEvents.$inferSelect
 export type DeviceSwitchState = typeof deviceSwitchStates.$inferSelect
+export type SwitchLogEntry = typeof switchLog.$inferSelect

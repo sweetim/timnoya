@@ -13,6 +13,8 @@ Internal HTTP routes served by the Elysia API server.
 | GET | `/sensors/temperature` | Query temperature/humidity history with optional aggregation |
 | POST | `/webhook/switchbot` | Receive SwitchBot webhook events and store to DB |
 | GET | `/webhook/events` | Query stored webhook events |
+| GET | `/switches` | Get all current switch states |
+| GET | `/switches/log` | Get switch toggle log |
 
 ## `/devices/status` Response
 
@@ -94,4 +96,31 @@ Incoming payload shape:
 ```bash
 curl http://localhost:3000/webhook/events
 curl http://localhost:3000/webhook/events?limit=50
+```
+
+## `/switches` Response
+
+Returns all current switch states from the `device_switch_states` table.
+
+```typescript
+type SwitchState = {
+  device_id: string;
+  device_name: string;
+  power: "on" | "off";
+  updated_at: string;
+};
+```
+
+## `/switches/log` Query Parameters
+
+| Parameter | Values | Default | Description |
+|-----------|--------|---------|-------------|
+| `limit` | number | 100 | Maximum number of log entries to return |
+
+### Usage
+
+```bash
+curl http://localhost:3000/switches
+curl http://localhost:3000/switches/log
+curl http://localhost:3000/switches/log?limit=50
 ```

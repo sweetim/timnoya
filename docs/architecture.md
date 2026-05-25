@@ -16,9 +16,9 @@
 | `packages/api-server/drizzle/` | Generated Drizzle SQL migrations and schema snapshots |
 | `packages/api-server/tsconfig.json` | TypeScript config for the API server |
 | `packages/api-server/Dockerfile` | Docker build for API server |
-| `packages/api-server/src/index.ts` | Elysia server entry point — defines routes for device status API, webhook receiver, starts light sensor polling, webhook registration, and presence automation |
+| `packages/api-server/src/index.ts` | Elysia server entry point — defines routes for device status API, webhook receiver, switch state/log endpoints, starts light sensor polling, webhook registration, and presence automation |
 | `packages/api-server/src/switchbot.ts` | SwitchBot API client — auth, device listing, status fetching, command sending, webhook management |
-| `packages/api-server/src/schema.ts` | Drizzle SQLite schema definitions (sensor_readings, webhook_events, device_switch_states) |
+| `packages/api-server/src/schema.ts` | Drizzle SQLite schema definitions (sensor_readings, webhook_events, device_switch_states, switch_log) |
 | `packages/api-server/src/database.ts` | SQLite DB (Drizzle + bun:sqlite) — applies migrations, insert/query/switch-state helpers |
 | `packages/api-server/src/light-sensor.ts` | Multi-device polling — discovers all devices with lightLevel or battery, logs readings every 10 min |
 | `packages/api-server/src/presence-handler.ts` | Presence sensor automation — turns Kitchen Light on when motion detected in low light, off when undetected, persists switch state in DB |
@@ -32,8 +32,8 @@
 | `packages/dashboard/src/index.html` | HTML entry point for the dashboard SPA |
 | `packages/dashboard/src/frontend.tsx` | React DOM mount point (StrictMode + HMR-aware root) |
 | `packages/dashboard/src/index.css` | Global styles — Tailwind v4 import, custom theme, glass/shimmer/badge utilities |
-| `packages/dashboard/src/App.tsx` | Dashboard shell — tab navigation (Dashboard/Webhooks), fetches `/api/devices/status`, `/api/sensors/brightness`, `/api/sensors/temperature`, `/api/webhook/events`, renders Header + TemperatureHumidity + SensorReadings + DeviceGrid or WebhookEvents, auto-refreshes every 30s / 5min, persists view mode and tab in localStorage |
-| `packages/dashboard/src/types.ts` | Shared types — `DeviceStatus` (with `deviceId` and `kind` fields), `StatusResponse`, `BrightnessReading`, `BrightnessHistoryResponse`, `TemperatureReading`, `TemperatureHistoryResponse`, `AggregationMode`, `WebhookEvent`, `WebhookEventsResponse`, `KNOWN_FIELDS` set (includes `deviceId`, `hubDeviceId`) |
+| `packages/dashboard/src/App.tsx` | Dashboard shell — tab navigation (Dashboard/Webhooks/Switches), fetches `/api/devices/status`, `/api/sensors/brightness`, `/api/sensors/temperature`, `/api/webhook/events`, `/api/switches`, `/api/switches/log`, renders Header + TemperatureHumidity + SensorReadings + DeviceGrid or WebhookEvents or SwitchStatus, auto-refreshes every 30s / 5min, persists view mode and tab in localStorage |
+| `packages/dashboard/src/types.ts` | Shared types — `DeviceStatus` (with `deviceId` and `kind` fields), `StatusResponse`, `BrightnessReading`, `BrightnessHistoryResponse`, `TemperatureReading`, `TemperatureHistoryResponse`, `AggregationMode`, `WebhookEvent`, `WebhookEventsResponse`, `SwitchState`, `SwitchesResponse`, `SwitchLogEntry`, `SwitchLogResponse`, `KNOWN_FIELDS` set (includes `deviceId`, `hubDeviceId`) |
 | `packages/dashboard/src/logo.svg` | Favicon SVG |
 | `packages/dashboard/src/components/DeviceCard.tsx` | Single device card — icon, name, type badge, dynamic status fields |
 | `packages/dashboard/src/components/DeviceGrid.tsx` | Main content area — SummaryCard, ViewToggle, renders card/table/compact views with loading skeletons and empty/error states |
@@ -43,6 +43,7 @@
 | `packages/dashboard/src/components/SkeletonTable.tsx` | Shimmer loading placeholder for table view |
 | `packages/dashboard/src/components/SummaryCard.tsx` | Summary stats — total device count and battery status list |
 | `packages/dashboard/src/components/SensorReadings.tsx` | Line chart (recharts) showing brightness and battery history per device with aggregation toggle (raw/hourly/daily) |
+| `packages/dashboard/src/components/SwitchStatus.tsx` | Switch status cards (on/off) and switch toggle log table with action/reason columns |
 | `packages/dashboard/src/components/TemperatureHumidity.tsx` | Line chart (recharts) showing temperature and humidity history per device with aggregation toggle (raw/hourly/daily) |
 | `packages/dashboard/src/components/WebhookEvents.tsx` | Webhook events table with pagination and keyboard-accessible expandable payload preview |
 | `packages/dashboard/src/components/ViewToggle.tsx` | View mode toggle — card/table/compact switcher |
@@ -67,7 +68,7 @@ packages/api-server/
       ├── sendDeviceCommand()    → send command (turnOn/turnOff) to a device
       ├── getRegisteredWebhooks() → fetch current webhook registrations
       └── setupWebhook()         → register webhook URL with SwitchBot
-    schema.ts               → Drizzle schema for sensor_readings (nullable brightness, temperature, humidity, battery), webhook_events (raw payload + parsed fields), device_switch_states (device_id PK, power state)
+    schema.ts               → Drizzle schema for sensor_readings (nullable brightness, temperature, humidity, battery), webhook_events (raw payload + parsed fields), device_switch_states (device_id PK, power state), switch_log (toggle history with action + trigger reason)
     database.ts             → SQLite DB via Drizzle + bun:sqlite, runs migrations on startup
       ├── insertReading()        → insert a brightness/battery reading
       ├── insertSensorReading()  → insert a temperature/humidity sensor reading
@@ -76,6 +77,9 @@ packages/api-server/
       ├── getTemperatureHistory() → query aggregated temperature/humidity history by raw/hourly/daily mode
       ├── insertWebhookEvent()   → insert a parsed webhook event
       ├── getWebhookHistory()    → query recent webhook events
+      ├── getAllSwitchStates()   → get all current switch power states
+      ├── insertSwitchLog()      → insert a switch toggle event
+      ├── getSwitchLog()         → query switch toggle log
       ├── getSwitchState()       → get current switch power state for a device
       └── upsertSwitchState()    → insert or update switch power state for a device
     light-sensor.ts         → Multi-device lightLevel|battery polling
@@ -101,7 +105,7 @@ packages/dashboard/
     App.tsx                  → Dashboard shell — data fetching, auto-refresh, view mode persistence
     types.ts                 → DeviceStatus (with deviceId/kind), StatusResponse, BrightnessReading,
                                BrightnessHistoryResponse, TemperatureReading,
-                               TemperatureHistoryResponse, KNOWN_FIELDS
+                               TemperatureHistoryResponse, SwitchState, SwitchLogEntry, KNOWN_FIELDS
     logo.svg                 → Favicon
     components/
       Header.tsx             → Sticky header with refresh button
@@ -113,6 +117,7 @@ packages/dashboard/
       SkeletonCard.tsx       → Shimmer loading placeholder (card)
       SkeletonTable.tsx      → Shimmer loading placeholder (table)
       SensorReadings.tsx     → Line chart (recharts) with per-device brightness toggle and aggregation mode selector
+      SwitchStatus.tsx        → Switch state cards (on/off) and toggle log table
       TemperatureHumidity.tsx → Line chart (recharts) with per-device temperature/humidity toggle and aggregation mode selector
     lib/
       device-utils.tsx       → Icon/color mapping (ts-pattern), formatValue with

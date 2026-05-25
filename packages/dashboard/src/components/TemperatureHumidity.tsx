@@ -221,22 +221,22 @@ export function TemperatureHumidity({
             tick={{ fontSize: 10, fill: "#64748b" }}
             stroke="rgba(255,255,255,0.1)"
           />
-          {hasTemperature && (
-            <YAxis
-              yAxisId="temperature"
-              tick={{ fontSize: 10, fill: "#f97316" }}
-              stroke="rgba(249,115,22,0.4)"
-              tickFormatter={(v: unknown): string => `${v} C`}
-            />
-          )}
           {hasHumidity && (
             <YAxis
               yAxisId="humidity"
-              orientation="right"
               domain={[0, 100]}
               tick={{ fontSize: 10, fill: "#60a5fa" }}
               stroke="rgba(96,165,250,0.4)"
               tickFormatter={(v: unknown): string => `${v}%`}
+            />
+          )}
+          {hasTemperature && (
+            <YAxis
+              yAxisId="temperature"
+              orientation="right"
+              tick={{ fontSize: 10, fill: "#f97316" }}
+              stroke="rgba(249,115,22,0.4)"
+              tickFormatter={(v: unknown): string => `${v} C`}
             />
           )}
           <Tooltip
@@ -249,42 +249,36 @@ export function TemperatureHumidity({
             }}
           />
           {hasTemperature
-            && devices.map(([deviceId, deviceName], idx) => {
-              const color = DEVICE_COLORS[idx % DEVICE_COLORS.length]
-              return (
+            && devices.map(([deviceId, deviceName]) => (
                 <Line
                   key={`${deviceId}_temperature`}
                   yAxisId="temperature"
                   type="monotone"
                   dataKey={`${deviceId}_temperature`}
                   name={`${deviceName} temperature`}
-                  stroke={color}
+                  stroke="#fb923c"
                   strokeWidth={2}
                   dot={false}
                   connectNulls
                   hide={hiddenDevices.has(deviceId)}
                 />
-              )
-            })}
+              ))}
           {hasHumidity
-            && devices.map(([deviceId, deviceName], idx) => {
-              const color = DEVICE_COLORS[idx % DEVICE_COLORS.length]
-              return (
+            && devices.map(([deviceId, deviceName]) => (
                 <Line
                   key={`${deviceId}_humidity`}
                   yAxisId="humidity"
                   type="monotone"
                   dataKey={`${deviceId}_humidity`}
                   name={`${deviceName} humidity`}
-                  stroke={color}
+                  stroke="#60a5fa"
                   strokeDasharray="4 4"
                   strokeWidth={2}
                   dot={false}
                   connectNulls
                   hide={hiddenDevices.has(deviceId)}
                 />
-              )
-            })}
+              ))}
         </LineChart>
       </ResponsiveContainer>
     </div>

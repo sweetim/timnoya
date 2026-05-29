@@ -12,6 +12,7 @@ type HmacSha256 = Hmac<Sha256>;
 const BASE_URL: &str = "https://api.switch-bot.com/v1.1";
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct SwitchBotResponse<T> {
     status_code: i64,
     message: String,
@@ -107,7 +108,12 @@ impl SwitchBotClient {
             req = req.header(k, v);
         }
         let resp = req.send().await.map_err(|e| e.to_string())?;
-        let data: SwitchBotResponse<T> = resp.json().await.map_err(|e| e.to_string())?;
+        let text = resp.text().await.map_err(|e| e.to_string())?;
+        debug!("GET {} response body: {}", path, text);
+        let data: SwitchBotResponse<T> = serde_json::from_str(&text).map_err(|e| {
+            error!("Failed to decode GET {} response: {} | body: {}", path, e, text);
+            e.to_string()
+        })?;
         debug!("GET {} -> statusCode={}", path, data.status_code);
         Ok(data)
     }
@@ -125,7 +131,12 @@ impl SwitchBotClient {
             req = req.header(k, v);
         }
         let resp = req.json(body).send().await.map_err(|e| e.to_string())?;
-        let data: SwitchBotResponse<T> = resp.json().await.map_err(|e| e.to_string())?;
+        let text = resp.text().await.map_err(|e| e.to_string())?;
+        debug!("POST {} response body: {}", path, text);
+        let data: SwitchBotResponse<T> = serde_json::from_str(&text).map_err(|e| {
+            error!("Failed to decode POST {} response: {} | body: {}", path, e, text);
+            e.to_string()
+        })?;
         debug!("POST {} -> statusCode={}", path, data.status_code);
         Ok(data)
     }

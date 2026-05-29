@@ -13,46 +13,108 @@ use crate::schema::{
 
 pub type DbPool = Pool<SqliteConnectionManager>;
 
+macro_rules! get_conn {
+    ($pool:expr) => {
+        match $pool.get() {
+            Ok(c) => c,
+            Err(e) => {
+                error!("Failed to get connection: {e}");
+                return Default::default();
+            }
+        }
+    };
+}
+
+fn aggregation_params(mode: &str) -> Option<(&'static str, &'static str)> {
+    match mode {
+        "raw" => Some(("-24 hours", "%Y-%m-%d %H:%M")),
+        "hourly" => Some(("-7 days", "%Y-%m-%d %H:00")),
+        "daily" => Some(("-90 days", "%Y-%m-%d")),
+        _ => None,
+    }
+}
+
 pub fn init_db(db_path: &str) -> DbPool {
     if let Some(parent) = Path::new(db_path).parent() {
         fs::create_dir_all(parent).expect("Failed to create database directory");
     }
-    info!("Opening database at {}", db_path);
+    info!("Opening database at {db_path}");
 
     let manager = SqliteConnectionManager::file(db_path)
-        .with_init(|conn| {
-            conn.execute_batch("PRAGMA journal_mode=WAL;")?;
-            Ok(())
-        });
+        .with_init(|conn| conn.execute_batch("PRAGMA journal_mode=WAL;"));
     let pool = Pool::new(manager).expect("Failed to create connection pool");
 
     let conn = pool.get().expect("Failed to get connection");
-    let migration_sql = include_str!("../migrations/0000_init.sql");
-    conn.execute_batch(migration_sql).expect("Failed to run migrations");
+    run_migrations(&conn);
     info!("Database migrated");
 
     pool
+}
+
+fn run_migrations(conn: &rusqlite::Connection) {
+    conn.execute_batch("CREATE TABLE IF NOT EXISTS _migrations (name TEXT PRIMARY KEY NOT NULL)")
+        .expect("Failed to create migrations table");
+
+    let tables_exist: bool = conn
+        .query_row(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='sensor_readings'",
+            [],
+            |row| row.get::<_, i64>(0),
+        )
+        .unwrap_or(0)
+        > 0;
+
+    if tables_exist {
+        conn.execute(
+            "INSERT OR IGNORE INTO _migrations (name) VALUES ('0000_init')",
+            [],
+        )
+        .unwrap();
+    }
+
+    let migrations: Vec<(&str, &str)> = vec![
+        ("0000_init", include_str!("../migrations/0000_init.sql")),
+        (
+            "0001_brightness_real_and_indices",
+            include_str!("../migrations/0001_brightness_real_and_indices.sql"),
+        ),
+    ];
+
+    for (name, sql) in migrations {
+        let applied: bool = conn
+            .query_row(
+                "SELECT COUNT(*) > 0 FROM _migrations WHERE name = ?1",
+                params![name],
+                |row| row.get(0),
+            )
+            .unwrap_or(false);
+
+        if !applied {
+            info!("Applying migration: {name}");
+            conn.execute_batch(sql)
+                .unwrap_or_else(|e| panic!("Migration {name} failed: {e}"));
+            conn.execute(
+                "INSERT INTO _migrations (name) VALUES (?1)",
+                params![name],
+            )
+            .unwrap();
+        }
+    }
 }
 
 pub fn insert_reading(
     pool: &DbPool,
     device_id: &str,
     device_name: &str,
-    brightness: Option<&str>,
+    brightness: Option<f64>,
     battery: Option<i64>,
 ) {
-    let conn = match pool.get() {
-        Ok(c) => c,
-        Err(e) => {
-            error!("Failed to get connection: {}", e);
-            return;
-        }
-    };
+    let conn = get_conn!(pool);
     if let Err(e) = conn.execute(
         "INSERT INTO sensor_readings (device_id, device_name, brightness, battery) VALUES (?1, ?2, ?3, ?4)",
         params![device_id, device_name, brightness, battery],
     ) {
-        error!("Failed to insert reading for {}: {}", device_name, e);
+        error!("Failed to insert reading for {device_name}: {e}");
     }
 }
 
@@ -63,35 +125,23 @@ pub fn insert_sensor_reading(
     temperature: Option<i64>,
     humidity: Option<i64>,
 ) {
-    let conn = match pool.get() {
-        Ok(c) => c,
-        Err(e) => {
-            error!("Failed to get connection: {}", e);
-            return;
-        }
-    };
+    let conn = get_conn!(pool);
     if let Err(e) = conn.execute(
         "INSERT INTO sensor_readings (device_id, device_name, temperature, humidity) VALUES (?1, ?2, ?3, ?4)",
         params![device_id, device_name, temperature, humidity],
     ) {
-        error!("Failed to insert sensor reading for {}: {}", device_id, e);
+        error!("Failed to insert sensor reading for {device_id}: {e}");
     }
 }
 
 pub fn get_brightness_history(pool: &DbPool, limit: i64) -> Vec<SensorReading> {
-    let conn = match pool.get() {
-        Ok(c) => c,
-        Err(e) => {
-            error!("Failed to get connection: {}", e);
-            return vec![];
-        }
-    };
+    let conn = get_conn!(pool);
     let mut stmt = match conn.prepare(
         "SELECT id, timestamp, device_id, device_name, brightness, temperature, humidity, battery FROM sensor_readings ORDER BY timestamp DESC LIMIT ?1",
     ) {
         Ok(s) => s,
         Err(e) => {
-            error!("Failed to prepare query: {}", e);
+            error!("Failed to prepare query: {e}");
             return vec![];
         }
     };
@@ -110,68 +160,62 @@ pub fn get_brightness_history(pool: &DbPool, limit: i64) -> Vec<SensorReading> {
     match rows {
         Ok(r) => r.filter_map(|r| r.ok()).collect(),
         Err(e) => {
-            error!("Failed to query brightness history: {}", e);
+            error!("Failed to query brightness history: {e}");
             vec![]
         }
     }
 }
 
 pub fn get_aggregated_history(pool: &DbPool, mode: &str) -> Vec<AggregatedRow> {
-    let (time_range, strftime_format) = match mode {
-        "raw" => ("-24 hours", "%Y-%m-%d %H:%M"),
-        "hourly" => ("-7 days", "%Y-%m-%d %H:00"),
-        "daily" => ("-90 days", "%Y-%m-%d"),
-        _ => return vec![],
+    let Some((time_range, strftime_format)) = aggregation_params(mode) else {
+        return vec![];
     };
-
-    let conn = match pool.get() {
-        Ok(c) => c,
-        Err(e) => {
-            error!("Failed to get connection: {}", e);
-            return vec![];
-        }
-    };
+    let conn = get_conn!(pool);
 
     if mode == "raw" {
         let sql = format!(
-            "SELECT id, timestamp, device_id, device_name, brightness, temperature, humidity, battery FROM sensor_readings WHERE timestamp >= datetime('now', '{}') ORDER BY timestamp DESC",
-            time_range
+            "SELECT id, timestamp, device_id, device_name, brightness, battery \
+             FROM sensor_readings \
+             WHERE timestamp >= datetime('now', '{time_range}') \
+             ORDER BY timestamp DESC"
         );
         let mut stmt = match conn.prepare(&sql) {
             Ok(s) => s,
             Err(e) => {
-                error!("Failed to prepare query: {}", e);
+                error!("Failed to prepare query: {e}");
                 return vec![];
             }
         };
         let rows = stmt.query_map([], |row| {
-            let brightness_str: Option<String> = row.get(4)?;
             Ok(AggregatedRow {
                 timestamp: row.get(1)?,
                 device_id: row.get(2)?,
                 device_name: row.get(3)?,
-                brightness: brightness_str
-                    .as_deref()
-                    .and_then(|s| s.parse::<f64>().ok()),
-                battery: row.get(7)?,
+                brightness: row.get(4)?,
+                battery: row.get::<_, Option<f64>>(5)?,
             })
         });
         match rows {
             Ok(r) => r.filter_map(|r| r.ok()).collect(),
             Err(e) => {
-                error!("Failed to query aggregated history: {}", e);
+                error!("Failed to query aggregated history: {e}");
                 vec![]
             }
         }
     } else {
         let sql = format!(
-            "SELECT strftime('{}', timestamp) as timestamp, device_id, device_name, AVG(CAST(brightness AS REAL)) as brightness, AVG(battery) as battery FROM sensor_readings WHERE timestamp >= datetime('now', '{}') GROUP BY strftime('{}', timestamp), device_id ORDER BY timestamp ASC",
-            strftime_format, time_range, strftime_format
+            "SELECT strftime('{strftime_format}', timestamp) as timestamp, \
+                    device_id, device_name, \
+                    AVG(brightness) as brightness, AVG(battery) as battery \
+             FROM sensor_readings \
+             WHERE timestamp >= datetime('now', '{time_range}') \
+             GROUP BY strftime('{strftime_format}', timestamp), device_id \
+             ORDER BY timestamp ASC"
         );
         let mut stmt = match conn.prepare(&sql) {
             Ok(s) => s,
             Err(e) => {
-                error!("Failed to prepare query: {}", e);
+                error!("Failed to prepare query: {e}");
                 return vec![];
             }
         };
@@ -187,7 +231,7 @@ pub fn get_aggregated_history(pool: &DbPool, mode: &str) -> Vec<AggregatedRow> {
         match rows {
             Ok(r) => r.filter_map(|r| r.ok()).collect(),
             Err(e) => {
-                error!("Failed to query aggregated history: {}", e);
+                error!("Failed to query aggregated history: {e}");
                 vec![]
             }
         }
@@ -195,30 +239,23 @@ pub fn get_aggregated_history(pool: &DbPool, mode: &str) -> Vec<AggregatedRow> {
 }
 
 pub fn get_temperature_history(pool: &DbPool, mode: &str) -> Vec<TemperatureRow> {
-    let (time_range, strftime_format) = match mode {
-        "raw" => ("-24 hours", "%Y-%m-%d %H:%M"),
-        "hourly" => ("-7 days", "%Y-%m-%d %H:00"),
-        "daily" => ("-90 days", "%Y-%m-%d"),
-        _ => return vec![],
+    let Some((time_range, strftime_format)) = aggregation_params(mode) else {
+        return vec![];
     };
-
-    let conn = match pool.get() {
-        Ok(c) => c,
-        Err(e) => {
-            error!("Failed to get connection: {}", e);
-            return vec![];
-        }
-    };
+    let conn = get_conn!(pool);
 
     if mode == "raw" {
         let sql = format!(
-            "SELECT id, timestamp, device_id, device_name, temperature, humidity FROM sensor_readings WHERE timestamp >= datetime('now', '{}') AND (temperature IS NOT NULL OR humidity IS NOT NULL) ORDER BY timestamp DESC",
-            time_range
+            "SELECT id, timestamp, device_id, device_name, temperature, humidity \
+             FROM sensor_readings \
+             WHERE timestamp >= datetime('now', '{time_range}') \
+             AND (temperature IS NOT NULL OR humidity IS NOT NULL) \
+             ORDER BY timestamp DESC"
         );
         let mut stmt = match conn.prepare(&sql) {
             Ok(s) => s,
             Err(e) => {
-                error!("Failed to prepare query: {}", e);
+                error!("Failed to prepare query: {e}");
                 return vec![];
             }
         };
@@ -234,19 +271,25 @@ pub fn get_temperature_history(pool: &DbPool, mode: &str) -> Vec<TemperatureRow>
         match rows {
             Ok(r) => r.filter_map(|r| r.ok()).collect(),
             Err(e) => {
-                error!("Failed to query temperature history: {}", e);
+                error!("Failed to query temperature history: {e}");
                 vec![]
             }
         }
     } else {
         let sql = format!(
-            "SELECT strftime('{}', timestamp) as timestamp, device_id, device_name, AVG(temperature) as temperature, AVG(humidity) as humidity FROM sensor_readings WHERE timestamp >= datetime('now', '{}') AND (temperature IS NOT NULL OR humidity IS NOT NULL) GROUP BY strftime('{}', timestamp), device_id ORDER BY timestamp ASC",
-            strftime_format, time_range, strftime_format
+            "SELECT strftime('{strftime_format}', timestamp) as timestamp, \
+                    device_id, device_name, \
+                    AVG(temperature) as temperature, AVG(humidity) as humidity \
+             FROM sensor_readings \
+             WHERE timestamp >= datetime('now', '{time_range}') \
+             AND (temperature IS NOT NULL OR humidity IS NOT NULL) \
+             GROUP BY strftime('{strftime_format}', timestamp), device_id \
+             ORDER BY timestamp ASC"
         );
         let mut stmt = match conn.prepare(&sql) {
             Ok(s) => s,
             Err(e) => {
-                error!("Failed to prepare query: {}", e);
+                error!("Failed to prepare query: {e}");
                 return vec![];
             }
         };
@@ -262,7 +305,7 @@ pub fn get_temperature_history(pool: &DbPool, mode: &str) -> Vec<TemperatureRow>
         match rows {
             Ok(r) => r.filter_map(|r| r.ok()).collect(),
             Err(e) => {
-                error!("Failed to query temperature history: {}", e);
+                error!("Failed to query temperature history: {e}");
                 vec![]
             }
         }
@@ -277,35 +320,23 @@ pub fn insert_webhook_event(
     device_mac: Option<&str>,
     payload: &str,
 ) {
-    let conn = match pool.get() {
-        Ok(c) => c,
-        Err(e) => {
-            error!("Failed to get connection: {}", e);
-            return;
-        }
-    };
+    let conn = get_conn!(pool);
     if let Err(e) = conn.execute(
         "INSERT INTO webhook_events (event_type, event_version, device_type, device_mac, payload) VALUES (?1, ?2, ?3, ?4, ?5)",
         params![event_type, event_version, device_type, device_mac, payload],
     ) {
-        error!("Failed to insert webhook event ({}): {}", event_type, e);
+        error!("Failed to insert webhook event ({event_type}): {e}");
     }
 }
 
 pub fn get_webhook_history(pool: &DbPool, limit: i64) -> Vec<WebhookEvent> {
-    let conn = match pool.get() {
-        Ok(c) => c,
-        Err(e) => {
-            error!("Failed to get connection: {}", e);
-            return vec![];
-        }
-    };
+    let conn = get_conn!(pool);
     let mut stmt = match conn.prepare(
         "SELECT id, timestamp, event_type, event_version, device_type, device_mac, payload FROM webhook_events ORDER BY timestamp DESC LIMIT ?1",
     ) {
         Ok(s) => s,
         Err(e) => {
-            error!("Failed to prepare query: {}", e);
+            error!("Failed to prepare query: {e}");
             return vec![];
         }
     };
@@ -323,7 +354,7 @@ pub fn get_webhook_history(pool: &DbPool, limit: i64) -> Vec<WebhookEvent> {
     match rows {
         Ok(r) => r.filter_map(|r| r.ok()).collect(),
         Err(e) => {
-            error!("Failed to query webhook history: {}", e);
+            error!("Failed to query webhook history: {e}");
             vec![]
         }
     }
@@ -331,9 +362,11 @@ pub fn get_webhook_history(pool: &DbPool, limit: i64) -> Vec<WebhookEvent> {
 
 pub fn get_switch_state(pool: &DbPool, device_id: &str) -> Option<DeviceSwitchState> {
     let conn = pool.get().ok()?;
-    let mut stmt = conn.prepare(
-        "SELECT device_id, device_name, power, updated_at FROM device_switch_states WHERE device_id = ?1",
-    ).ok()?;
+    let mut stmt = conn
+        .prepare(
+            "SELECT device_id, device_name, power, updated_at FROM device_switch_states WHERE device_id = ?1",
+        )
+        .ok()?;
     stmt.query_row(params![device_id], |row| {
         Ok(DeviceSwitchState {
             device_id: row.get(0)?,
@@ -341,7 +374,8 @@ pub fn get_switch_state(pool: &DbPool, device_id: &str) -> Option<DeviceSwitchSt
             power: row.get(2)?,
             updated_at: row.get(3)?,
         })
-    }).ok()
+    })
+    .ok()
 }
 
 pub fn upsert_switch_state(
@@ -350,35 +384,23 @@ pub fn upsert_switch_state(
     device_name: &str,
     power: &str,
 ) {
-    let conn = match pool.get() {
-        Ok(c) => c,
-        Err(e) => {
-            error!("Failed to get connection: {}", e);
-            return;
-        }
-    };
+    let conn = get_conn!(pool);
     if let Err(e) = conn.execute(
         "INSERT INTO device_switch_states (device_id, device_name, power) VALUES (?1, ?2, ?3) ON CONFLICT(device_id) DO UPDATE SET power = ?3, updated_at = datetime('now')",
         params![device_id, device_name, power],
     ) {
-        error!("Failed to upsert switch state for {}: {}", device_id, e);
+        error!("Failed to upsert switch state for {device_id}: {e}");
     }
 }
 
 pub fn get_all_switch_states(pool: &DbPool) -> Vec<DeviceSwitchState> {
-    let conn = match pool.get() {
-        Ok(c) => c,
-        Err(e) => {
-            error!("Failed to get connection: {}", e);
-            return vec![];
-        }
-    };
+    let conn = get_conn!(pool);
     let mut stmt = match conn.prepare(
         "SELECT device_id, device_name, power, updated_at FROM device_switch_states",
     ) {
         Ok(s) => s,
         Err(e) => {
-            error!("Failed to prepare query: {}", e);
+            error!("Failed to prepare query: {e}");
             return vec![];
         }
     };
@@ -393,7 +415,7 @@ pub fn get_all_switch_states(pool: &DbPool) -> Vec<DeviceSwitchState> {
     match rows {
         Ok(r) => r.filter_map(|r| r.ok()).collect(),
         Err(e) => {
-            error!("Failed to query switch states: {}", e);
+            error!("Failed to query switch states: {e}");
             vec![]
         }
     }
@@ -406,35 +428,23 @@ pub fn insert_switch_log(
     action: &str,
     trigger_reason: Option<&str>,
 ) {
-    let conn = match pool.get() {
-        Ok(c) => c,
-        Err(e) => {
-            error!("Failed to get connection: {}", e);
-            return;
-        }
-    };
+    let conn = get_conn!(pool);
     if let Err(e) = conn.execute(
         "INSERT INTO switch_log (device_id, device_name, action, trigger_reason) VALUES (?1, ?2, ?3, ?4)",
         params![device_id, device_name, action, trigger_reason],
     ) {
-        error!("Failed to insert switch log: {}", e);
+        error!("Failed to insert switch log: {e}");
     }
 }
 
 pub fn get_switch_log(pool: &DbPool, limit: i64) -> Vec<SwitchLogEntry> {
-    let conn = match pool.get() {
-        Ok(c) => c,
-        Err(e) => {
-            error!("Failed to get connection: {}", e);
-            return vec![];
-        }
-    };
+    let conn = get_conn!(pool);
     let mut stmt = match conn.prepare(
         "SELECT id, timestamp, device_id, device_name, action, trigger_reason FROM switch_log ORDER BY timestamp DESC LIMIT ?1",
     ) {
         Ok(s) => s,
         Err(e) => {
-            error!("Failed to prepare query: {}", e);
+            error!("Failed to prepare query: {e}");
             return vec![];
         }
     };
@@ -451,7 +461,7 @@ pub fn get_switch_log(pool: &DbPool, limit: i64) -> Vec<SwitchLogEntry> {
     match rows {
         Ok(r) => r.filter_map(|r| r.ok()).collect(),
         Err(e) => {
-            error!("Failed to query switch log: {}", e);
+            error!("Failed to query switch log: {e}");
             vec![]
         }
     }

@@ -1,5 +1,8 @@
 use std::collections::HashMap;
+use std::time::Duration;
 
+use base64::engine::general_purpose::STANDARD;
+use base64::Engine;
 use hmac::{Hmac, Mac};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -72,8 +75,12 @@ pub struct SwitchBotClient {
 
 impl SwitchBotClient {
     pub fn new(token: String, secret: String) -> Self {
+        let client = Client::builder()
+            .timeout(Duration::from_secs(30))
+            .build()
+            .expect("Failed to create HTTP client");
         Self {
-            client: Client::new(),
+            client,
             token,
             secret,
         }
@@ -85,7 +92,7 @@ impl SwitchBotClient {
         let mut mac = HmacSha256::new_from_slice(self.secret.as_bytes())
             .expect("HMAC can take key of any size");
         mac.update(format!("{}{}{}", self.token, timestamp, nonce).as_bytes());
-        let sign = base64_encode(mac.finalize().into_bytes().to_vec());
+        let sign = STANDARD.encode(mac.finalize().into_bytes().to_vec());
 
         let mut headers = HashMap::new();
         headers.insert("Authorization".to_string(), self.token.clone());
@@ -100,8 +107,8 @@ impl SwitchBotClient {
         &self,
         path: &str,
     ) -> Result<SwitchBotResponse<T>, String> {
-        let url = format!("{}{}", BASE_URL, path);
-        debug!("GET {}", path);
+        let url = format!("{BASE_URL}{path}");
+        debug!("GET {path}");
         let headers = self.build_headers();
         let mut req = self.client.get(&url);
         for (k, v) in headers {
@@ -109,12 +116,12 @@ impl SwitchBotClient {
         }
         let resp = req.send().await.map_err(|e| e.to_string())?;
         let text = resp.text().await.map_err(|e| e.to_string())?;
-        debug!("GET {} response body: {}", path, text);
+        debug!("GET {path} response body: {text}");
         let data: SwitchBotResponse<T> = serde_json::from_str(&text).map_err(|e| {
-            error!("Failed to decode GET {} response: {} | body: {}", path, e, text);
+            error!("Failed to decode GET {path} response: {e} | body: {text}");
             e.to_string()
         })?;
-        debug!("GET {} -> statusCode={}", path, data.status_code);
+        debug!("GET {path} -> statusCode={}", data.status_code);
         Ok(data)
     }
 
@@ -123,8 +130,8 @@ impl SwitchBotClient {
         path: &str,
         body: &serde_json::Value,
     ) -> Result<SwitchBotResponse<T>, String> {
-        let url = format!("{}{}", BASE_URL, path);
-        debug!("POST {}", path);
+        let url = format!("{BASE_URL}{path}");
+        debug!("POST {path}");
         let headers = self.build_headers();
         let mut req = self.client.post(&url);
         for (k, v) in headers {
@@ -132,12 +139,12 @@ impl SwitchBotClient {
         }
         let resp = req.json(body).send().await.map_err(|e| e.to_string())?;
         let text = resp.text().await.map_err(|e| e.to_string())?;
-        debug!("POST {} response body: {}", path, text);
+        debug!("POST {path} response body: {text}");
         let data: SwitchBotResponse<T> = serde_json::from_str(&text).map_err(|e| {
-            error!("Failed to decode POST {} response: {} | body: {}", path, e, text);
+            error!("Failed to decode POST {path} response: {e} | body: {text}");
             e.to_string()
         })?;
-        debug!("POST {} -> statusCode={}", path, data.status_code);
+        debug!("POST {path} -> statusCode={}", data.status_code);
         Ok(data)
     }
 
@@ -148,7 +155,7 @@ impl SwitchBotClient {
 
         if data.status_code != 100 {
             let err = format!("SwitchBot API error: {} - {}", data.status_code, data.message);
-            error!("{}", err);
+            error!("{err}");
             return Err(err);
         }
 
@@ -186,79 +193,74 @@ impl SwitchBotClient {
         &self,
         device_id: &str,
     ) -> Result<serde_json::Value, String> {
-        let path = format!("/devices/{}/status", device_id);
+        let path = format!("/devices/{device_id}/status");
         let data = self
             .switchbot_get::<serde_json::Value>(&path)
             .await?;
 
         if data.status_code != 100 {
             let err = format!(
-                "SwitchBot API error for device {}: {} - {}",
-                device_id, data.status_code, data.message
+                "SwitchBot API error for device {device_id}: {} - {}",
+                data.status_code, data.message
             );
-            error!("{}", err);
+            error!("{err}");
             return Err(err);
         }
 
         Ok(data.body.unwrap_or(serde_json::Value::Null))
     }
 
-    pub async fn get_all_device_statuses(&self) -> Vec<DeviceStatus> {
-        let devices = match self.get_devices().await {
-            Ok(d) => d,
-            Err(e) => {
-                error!("Failed to get devices: {}", e);
-                return vec![];
-            }
-        };
+    pub async fn get_all_device_statuses(&self) -> Result<Vec<DeviceStatus>, String> {
+        let devices = self.get_devices().await?;
 
-        let mut statuses = Vec::new();
+        let statuses = futures::future::join_all(devices.into_iter().map(|device| {
+            let client = self.clone();
+            async move {
+                if device.kind == "infrared" {
+                    return DeviceStatus {
+                        device_id: device.device_id,
+                        name: device.device_name,
+                        device_type: device.device_type,
+                        kind: device.kind,
+                        extra: HashMap::new(),
+                    };
+                }
 
-        for device in &devices {
-            if device.kind == "infrared" {
-                let extra = HashMap::new();
-                statuses.push(DeviceStatus {
-                    device_id: device.device_id.clone(),
-                    name: device.device_name.clone(),
-                    device_type: device.device_type.clone(),
-                    kind: device.kind.clone(),
-                    extra,
-                });
-                continue;
-            }
-
-            match self.get_device_status(&device.device_id).await {
-                Ok(status) => {
-                    let mut extra = HashMap::new();
-                    if let serde_json::Value::Object(map) = status {
-                        for (k, v) in map {
-                            extra.insert(k, v);
+                match client.get_device_status(&device.device_id).await {
+                    Ok(status) => {
+                        let mut extra = HashMap::new();
+                        if let serde_json::Value::Object(map) = status {
+                            for (k, v) in map {
+                                extra.insert(k, v);
+                            }
+                        }
+                        DeviceStatus {
+                            device_id: device.device_id,
+                            name: device.device_name,
+                            device_type: device.device_type,
+                            kind: device.kind,
+                            extra,
                         }
                     }
-                    statuses.push(DeviceStatus {
-                        device_id: device.device_id.clone(),
-                        name: device.device_name.clone(),
-                        device_type: device.device_type.clone(),
-                        kind: device.kind.clone(),
-                        extra,
-                    });
-                }
-                Err(e) => {
-                    warn!("Failed to get status for {}: {}", device.device_name, e);
-                    let mut extra = HashMap::new();
-                    extra.insert("error".to_string(), serde_json::Value::Bool(true));
-                    statuses.push(DeviceStatus {
-                        device_id: device.device_id.clone(),
-                        name: device.device_name.clone(),
-                        device_type: device.device_type.clone(),
-                        kind: device.kind.clone(),
-                        extra,
-                    });
+                    Err(e) => {
+                        warn!("Failed to get status for {}: {e}", device.device_name);
+                        DeviceStatus {
+                            device_id: device.device_id,
+                            name: device.device_name,
+                            device_type: device.device_type,
+                            kind: device.kind,
+                            extra: HashMap::from([(
+                                "error".to_string(),
+                                serde_json::Value::Bool(true),
+                            )]),
+                        }
+                    }
                 }
             }
-        }
+        }))
+        .await;
 
-        statuses
+        Ok(statuses)
     }
 
     pub async fn send_device_command(
@@ -267,21 +269,23 @@ impl SwitchBotClient {
         command: &str,
         parameter: Option<&str>,
     ) -> Result<(i64, String), String> {
-        let path = format!("/devices/{}/commands", device_id);
+        let path = format!("/devices/{device_id}/commands");
         let body = serde_json::json!({
             "command": command,
             "parameter": parameter.unwrap_or("default"),
             "commandType": "command",
         });
 
-        let data = self.switchbot_post::<serde_json::Value>(&path, &body).await?;
+        let data = self
+            .switchbot_post::<serde_json::Value>(&path, &body)
+            .await?;
 
         if data.status_code != 100 {
             let err = format!(
-                "SwitchBot command error for {}: {} - {}",
-                device_id, data.status_code, data.message
+                "SwitchBot command error for {device_id}: {} - {}",
+                data.status_code, data.message
             );
-            error!("{}", err);
+            error!("{err}");
             return Err(err);
         }
 
@@ -303,7 +307,7 @@ impl SwitchBotClient {
                 "SwitchBot queryWebhook error: {} - {}",
                 data.status_code, data.message
             );
-            error!("{}", err);
+            error!("{err}");
             return Err(err);
         }
 
@@ -335,16 +339,10 @@ impl SwitchBotClient {
                 "SwitchBot setupWebhook error: {} - {}",
                 data.status_code, data.message
             );
-            error!("{}", err);
+            error!("{err}");
             return Err(err);
         }
 
         Ok((data.status_code, data.message))
     }
-}
-
-fn base64_encode(data: Vec<u8>) -> String {
-    use base64::engine::general_purpose::STANDARD;
-    use base64::Engine;
-    STANDARD.encode(data)
 }

@@ -13,13 +13,21 @@
 | `packages/api-server/Cargo.toml` | Rust project config and dependencies |
 | `packages/api-server/Dockerfile` | Multi-stage Docker build for Rust API server |
 | `packages/api-server/migrations/0000_init.sql` | SQLite schema (sensor_readings, webhook_events, device_switch_states, switch_log) |
-| `packages/api-server/src/main.rs` | Axum HTTP server entry point — routes, startup, background tasks |
-| `packages/api-server/src/switchbot.rs` | SwitchBot API client — HMAC-SHA256 auth, device listing, status fetching, command sending, webhook management |
+| `packages/api-server/migrations/0001_brightness_real_and_indices.sql` | Migration — converts brightness TEXT→REAL, adds indices |
+| `packages/api-server/src/main.rs` | Axum HTTP server entry point — startup, route wiring, background tasks |
+| `packages/api-server/src/error.rs` | AppError enum (thiserror) with axum IntoResponse — structured HTTP error responses |
+| `packages/api-server/src/state.rs` | AppState struct — shared state (DbPool, SwitchBotClient, kitchen_light_device_id) |
+| `packages/api-server/src/switchbot.rs` | SwitchBot API client — HMAC-SHA256 auth, parallel device status fetching, 30s timeout, command sending, webhook management |
 | `packages/api-server/src/schema.rs` | Serde structs for database rows (SensorReading, WebhookEvent, DeviceSwitchState, SwitchLogEntry, AggregatedRow, TemperatureRow) |
-| `packages/api-server/src/database.rs` | SQLite via r2d2 pool + rusqlite — runs migrations, insert/query/switch-state helpers |
-| `packages/api-server/src/light_sensor.rs` | Multi-device polling — discovers all devices with lightLevel or battery, logs readings every 10 min |
-| `packages/api-server/src/presence_handler.rs` | Presence sensor automation — turns Kitchen Light on when motion detected in low light, off when undetected |
-| `packages/api-server/src/webhook.rs` | Webhook registration — checks if webhook URL is registered with SwitchBot, registers if missing |
+| `packages/api-server/src/database.rs` | SQLite via r2d2 pool + rusqlite — migration runner, insert/query/switch-state helpers (get_conn! macro) |
+| `packages/api-server/src/handlers/mod.rs` | Handler module re-exports + shared PaginationQuery |
+| `packages/api-server/src/handlers/devices.rs` | Device handlers — GET /devices, /devices/status, /devices/{id}/status |
+| `packages/api-server/src/handlers/sensors.rs` | Sensor handlers — GET /sensors/brightness, /sensors/temperature (spawn_blocking for DB) |
+| `packages/api-server/src/handlers/webhooks.rs` | Webhook handlers — POST /webhook/switchbot (inbound), GET /webhook/events (spawn_blocking for DB) |
+| `packages/api-server/src/handlers/switches.rs` | Switch handlers — GET /switches, /switches/log (spawn_blocking for DB) |
+| `packages/api-server/src/light_sensor.rs` | Multi-device polling — parallel discovery, logs readings every 10 min |
+| `packages/api-server/src/presence_handler.rs` | Presence sensor automation — turns Kitchen Light on/off with spawn_blocking for DB |
+| `packages/api-server/src/webhook.rs` | Webhook registration — checks if webhook URL (WEBHOOK_URL env) is registered, registers if missing |
 | `packages/api-server/src/logger.rs` | tracing-subscriber init with env-filter (reads RUST_LOG) |
 | `packages/dashboard/package.json` | Dashboard package metadata and scripts |
 | `packages/dashboard/tsconfig.json` | TypeScript config for the dashboard (includes `@/*` path alias) |
@@ -54,20 +62,24 @@ packages/api-server/
   Dockerfile                 → Multi-stage Rust Docker build
   migrations/
     0000_init.sql            → SQLite schema (idempotent CREATE TABLE IF NOT EXISTS)
+    0001_brightness_real_and_indices.sql → Convert brightness TEXT→REAL, add indices
   src/
-    main.rs                  → Axum HTTP server (routes) + starts background tasks
+    main.rs                  → Axum HTTP server startup, route wiring, background tasks
+    error.rs                 → AppError enum (thiserror + IntoResponse)
+    state.rs                 → AppState struct (DbPool, SwitchBotClient, kitchen_light_device_id)
     switchbot.rs             → SwitchBot API client
       ├── build_headers()         → HMAC-SHA256 signed auth headers
       ├── switchbot_get<T>()      → generic GET with auth headers
       ├── switchbot_post<T>()     → generic POST with auth headers
       ├── get_devices()           → fetch /devices, return normalized list
       ├── get_device_status()     → fetch /devices/:id/status
-      ├── get_all_device_statuses() → parallel status fetch for all devices
+      ├── get_all_device_statuses() → parallel status fetch for all devices (futures::join_all)
       ├── send_device_command()   → send command (turnOn/turnOff) to a device
       ├── get_registered_webhooks() → fetch current webhook registrations
       └── setup_webhook()         → register webhook URL with SwitchBot
     schema.rs                → Serde structs for sensor_readings, webhook_events, device_switch_states, switch_log
-    database.rs              → SQLite DB via r2d2 pool + rusqlite, runs migrations on startup
+    database.rs              → SQLite DB via r2d2 pool + rusqlite, migration runner, get_conn! macro
+      ├── init_db()                 → create pool, run versioned migrations
       ├── insert_reading()        → insert a brightness/battery reading
       ├── insert_sensor_reading()  → insert a temperature/humidity sensor reading
       ├── get_brightness_history() → query recent sensor readings (legacy, with limit)
@@ -80,14 +92,20 @@ packages/api-server/
       ├── get_switch_log()         → query switch toggle log
       ├── get_switch_state()       → get current switch power state for a device
       └── upsert_switch_state()    → insert or update switch power state for a device
-    light_sensor.rs          → Multi-device lightLevel|battery polling
-      ├── find_light_battery_devices() → discover all devices with lightLevel or battery fields
-      ├── update_batteries()         → refresh cached battery for each device
-      ├── log_readings()             → fetch status + write to DB for each device
+    handlers/
+      mod.rs                  → Re-exports + shared PaginationQuery
+      devices.rs              → GET /devices, /devices/status, /devices/{id}/status
+      sensors.rs              → GET /sensors/brightness, /sensors/temperature (spawn_blocking)
+      webhooks.rs             → POST /webhook/switchbot, GET /webhook/events (spawn_blocking)
+      switches.rs             → GET /switches, /switches/log (spawn_blocking)
+    light_sensor.rs          → Multi-device lightLevel|battery polling (parallel fetch)
+      ├── find_light_battery_devices() → discover all devices with lightLevel or battery fields (parallel)
+      ├── update_batteries()         → refresh cached battery for each device (parallel)
+      ├── log_readings()             → fetch status + write to DB for each device (parallel)
       └── start_light_sensor_polling() → discover devices, start 10-min/24h intervals
-    webhook.rs               → Webhook registration on startup
+    webhook.rs               → Webhook registration on startup (WEBHOOK_URL env var)
       └── ensure_webhook()          → check if webhook URL is registered, register if missing
-    presence_handler.rs      → Presence sensor automation
+    presence_handler.rs      → Presence sensor automation (spawn_blocking for DB)
       ├── init_switch_states()        → ensure Kitchen Light switch state row exists in DB (default off)
       └── handle_presence_event()     → on DETECTED + lightLevel<=5 turn on Kitchen Light; on NOT_DETECTED turn off
     logger.rs                → tracing-subscriber init with env-filter (RUST_LOG)
@@ -151,6 +169,8 @@ packages/dashboard/
 | `base64` | Base64 encoding for SwitchBot auth signature |
 | `dotenvy` | .env file loading |
 | `tower-http` | HTTP middleware (tracing) |
+| `thiserror` | Derived error types with Display/From |
+| `futures` | Async utilities (join_all for parallel fetching) |
 
 ### Dashboard (`packages/dashboard`)
 
@@ -173,5 +193,7 @@ packages/dashboard/
 | `DB_PATH` | api-server | No | SQLite DB path (default: `/data/brightness.db`) |
 | `KITCHEN_LIGHT_DEVICE_ID` | api-server | No* | SwitchBot device ID for the Kitchen Light (required for presence automation) |
 | `RUST_LOG` | api-server | No | Log level (default: `info`) |
+| `WEBHOOK_URL` | api-server | No | Webhook endpoint URL (default: `https://webhooks.timx.co/webhook/switchbot`) |
+| `STATIC_DIR` | api-server | No | Static files directory (default: `/app/dist`) |
 | `API_BASE_URL` | dashboard | No | API server URL for proxy (default: `http://localhost:3000`) |
 | `NODE_ENV` | dashboard | No | Set to `production` to disable HMR |

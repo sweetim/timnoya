@@ -6,7 +6,7 @@ pub struct SensorReading {
     pub timestamp: String,
     pub device_id: String,
     pub device_name: String,
-    pub brightness: Option<String>,
+    pub brightness: Option<f64>,
     pub temperature: Option<i64>,
     pub humidity: Option<i64>,
     pub battery: Option<i64>,

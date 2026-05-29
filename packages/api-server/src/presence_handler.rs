@@ -19,7 +19,12 @@ pub fn init_switch_states(pool: &DbPool, kitchen_light_device_id: &str) {
             );
         }
         None => {
-            upsert_switch_state(pool, kitchen_light_device_id, KITCHEN_LIGHT_DEVICE_NAME, "off");
+            upsert_switch_state(
+                pool,
+                kitchen_light_device_id,
+                KITCHEN_LIGHT_DEVICE_NAME,
+                "off",
+            );
             info!(
                 "Initialized switch state for {} ({}) as off",
                 KITCHEN_LIGHT_DEVICE_NAME, kitchen_light_device_id
@@ -45,7 +50,14 @@ pub async fn handle_presence_event(
         None => return,
     };
 
-    let current_state = get_switch_state(&pool, kitchen_light_device_id);
+    let device_id_owned = kitchen_light_device_id.to_string();
+    let current_state = tokio::task::spawn_blocking({
+        let pool = pool.clone();
+        move || get_switch_state(&pool, &device_id_owned)
+    })
+    .await
+    .unwrap_or(None);
+
     let current_power = current_state
         .as_ref()
         .map(|s| s.power.as_str())
@@ -62,8 +74,7 @@ pub async fn handle_presence_event(
 
         if light_level > LIGHT_LEVEL_THRESHOLD {
             info!(
-                "DETECTED but lightLevel={} > {}, skipping",
-                light_level, LIGHT_LEVEL_THRESHOLD
+                "DETECTED but lightLevel={light_level} > {LIGHT_LEVEL_THRESHOLD}, skipping"
             );
             return;
         }
@@ -74,8 +85,7 @@ pub async fn handle_presence_event(
         }
 
         info!(
-            "DETECTED with lightLevel={} <= {}, turning on kitchen light",
-            light_level, LIGHT_LEVEL_THRESHOLD
+            "DETECTED with lightLevel={light_level} <= {LIGHT_LEVEL_THRESHOLD}, turning on kitchen light"
         );
 
         match client
@@ -83,22 +93,29 @@ pub async fn handle_presence_event(
             .await
         {
             Ok(_) => {
-                upsert_switch_state(
-                    &pool,
-                    kitchen_light_device_id,
-                    KITCHEN_LIGHT_DEVICE_NAME,
-                    "on",
-                );
-                insert_switch_log(
-                    &pool,
-                    kitchen_light_device_id,
-                    KITCHEN_LIGHT_DEVICE_NAME,
-                    "on",
-                    Some(&format!("motion detected, lightLevel={}", light_level)),
-                );
+                let pool = pool.clone();
+                let device_id = kitchen_light_device_id.to_string();
+                let reason = format!("motion detected, lightLevel={light_level}");
+                tokio::task::spawn_blocking(move || {
+                    upsert_switch_state(
+                        &pool,
+                        &device_id,
+                        KITCHEN_LIGHT_DEVICE_NAME,
+                        "on",
+                    );
+                    insert_switch_log(
+                        &pool,
+                        &device_id,
+                        KITCHEN_LIGHT_DEVICE_NAME,
+                        "on",
+                        Some(&reason),
+                    );
+                })
+                .await
+                .ok();
                 info!("Kitchen light turned on, state updated");
             }
-            Err(e) => error!("Failed to turn on kitchen light: {}", e),
+            Err(e) => error!("Failed to turn on kitchen light: {e}"),
         }
     } else if detection_state == "NOT_DETECTED" {
         if current_power == "off" {
@@ -113,22 +130,28 @@ pub async fn handle_presence_event(
             .await
         {
             Ok(_) => {
-                upsert_switch_state(
-                    &pool,
-                    kitchen_light_device_id,
-                    KITCHEN_LIGHT_DEVICE_NAME,
-                    "off",
-                );
-                insert_switch_log(
-                    &pool,
-                    kitchen_light_device_id,
-                    KITCHEN_LIGHT_DEVICE_NAME,
-                    "off",
-                    Some("motion not detected"),
-                );
+                let pool = pool.clone();
+                let device_id = kitchen_light_device_id.to_string();
+                tokio::task::spawn_blocking(move || {
+                    upsert_switch_state(
+                        &pool,
+                        &device_id,
+                        KITCHEN_LIGHT_DEVICE_NAME,
+                        "off",
+                    );
+                    insert_switch_log(
+                        &pool,
+                        &device_id,
+                        KITCHEN_LIGHT_DEVICE_NAME,
+                        "off",
+                        Some("motion not detected"),
+                    );
+                })
+                .await
+                .ok();
                 info!("Kitchen light turned off, state updated");
             }
-            Err(e) => error!("Failed to turn off kitchen light: {}", e),
+            Err(e) => error!("Failed to turn off kitchen light: {e}"),
         }
     }
 }

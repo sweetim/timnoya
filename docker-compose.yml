@@ -1,20 +1,9 @@
 services:
-  api:
-    build:
-      context: .
-      dockerfile: packages/api-server/Dockerfile
+  app:
+    image: ghcr.io/sweetim/timnoya:latest
     env_file:
       - .env
     volumes:
       - ./data:/data
-
-  dashboard:
-    build:
-      context: .
-      dockerfile: packages/dashboard/Dockerfile
     ports:
-      - "3000:3001"
-    environment:
-      - API_BASE_URL=http://api:3000
-    depends_on:
-      - api
+      - "3000:3000"

@@ -6,8 +6,10 @@
     "packages/*"
   ],
   "scripts": {
-    "api:dev": "bun run --filter @timnoya/api-server dev",
-    "api:start": "bun run --filter @timnoya/api-server start",
+    "api:dev": "cargo run --manifest-path packages/api-server/Cargo.toml",
+    "api:start": "cargo run --release --manifest-path packages/api-server/Cargo.toml",
+    "api:build": "cargo build --manifest-path packages/api-server/Cargo.toml",
+    "api:check": "cargo check --manifest-path packages/api-server/Cargo.toml",
     "dashboard:dev": "bun run --filter @timnoya/dashboard dev",
     "dashboard:start": "bun run --filter @timnoya/dashboard start",
     "lint": "biome lint .",

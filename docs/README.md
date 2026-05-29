@@ -1,6 +1,6 @@
 # timnoya Documentation
 
-timnoya is a Bun workspace with an ElysiaJS API server that queries the SwitchBot API v1.1 to expose device status over HTTP.
+timnoya is a Rust (axum) API server that queries the SwitchBot API v1.1 to expose device status over HTTP, plus a Bun-based dashboard.
 
 ## Docs
 

@@ -2,11 +2,12 @@ use axum::extract::{Query, State};
 use axum::Json;
 use serde::{Deserialize, Serialize};
 
+use crate::error::AppError;
+use crate::schema::AggregatedRow;
 use crate::state::AppState;
 
 #[derive(Deserialize)]
 pub struct BrightnessQuery {
-    pub limit: Option<i64>,
     pub aggregation: Option<String>,
 }
 
@@ -17,7 +18,7 @@ pub struct TemperatureQuery {
 
 #[derive(Serialize)]
 pub struct BrightnessHistoryResponse {
-    pub history: Vec<serde_json::Value>,
+    pub history: Vec<AggregatedRow>,
 }
 
 #[derive(Serialize)]
@@ -28,42 +29,21 @@ pub struct TemperatureHistoryResponse {
 pub async fn get_brightness(
     State(state): State<AppState>,
     Query(query): Query<BrightnessQuery>,
-) -> Json<BrightnessHistoryResponse> {
-    if let Some(ref agg) = query.aggregation {
-        if matches!(agg.as_str(), "raw" | "hourly" | "daily") {
-            let pool = state.db.clone();
-            let mode = agg.clone();
-            let history = tokio::task::spawn_blocking(move || {
-                crate::database::get_aggregated_history(&pool, &mode)
-            })
-            .await
-            .unwrap_or_default();
-            let history: Vec<serde_json::Value> = history
-                .into_iter()
-                .map(|r| serde_json::to_value(r).unwrap_or_default())
-                .collect();
-            return Json(BrightnessHistoryResponse { history });
-        }
-    }
-
-    let limit = query.limit.unwrap_or(100);
+) -> Result<Json<BrightnessHistoryResponse>, AppError> {
+    let mode = query.aggregation.as_deref().unwrap_or("raw").to_string();
     let pool = state.db.clone();
     let history = tokio::task::spawn_blocking(move || {
-        crate::database::get_brightness_history(&pool, limit)
+        crate::db::sensors::get_aggregated_history(&pool, &mode)
     })
     .await
-    .unwrap_or_default();
-    let history: Vec<serde_json::Value> = history
-        .into_iter()
-        .map(|r| serde_json::to_value(r).unwrap_or_default())
-        .collect();
-    Json(BrightnessHistoryResponse { history })
+    .map_err(|e| AppError::Database(format!("spawn_blocking failed: {e}")))??;
+    Ok(Json(BrightnessHistoryResponse { history }))
 }
 
 pub async fn get_temperature(
     State(state): State<AppState>,
     Query(query): Query<TemperatureQuery>,
-) -> Json<TemperatureHistoryResponse> {
+) -> Result<Json<TemperatureHistoryResponse>, AppError> {
     let mode = query
         .aggregation
         .as_deref()
@@ -71,9 +51,9 @@ pub async fn get_temperature(
         .to_string();
     let pool = state.db.clone();
     let history = tokio::task::spawn_blocking(move || {
-        crate::database::get_temperature_history(&pool, &mode)
+        crate::db::sensors::get_temperature_history(&pool, &mode)
     })
     .await
-    .unwrap_or_default();
-    Json(TemperatureHistoryResponse { history })
+    .map_err(|e| AppError::Database(format!("spawn_blocking failed: {e}")))??;
+    Ok(Json(TemperatureHistoryResponse { history }))
 }

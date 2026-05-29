@@ -5,10 +5,29 @@ use serde::Serialize;
 
 #[derive(Debug, thiserror::Error)]
 pub enum AppError {
-    #[error("SwitchBot API error: {0}")]
-    SwitchBot(String),
+    #[error(transparent)]
+    SwitchBot(#[from] SwitchBotError),
     #[error("Database error: {0}")]
     Database(String),
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum SwitchBotError {
+    #[error("API error (code {code}): {message}")]
+    Api { code: i64, message: String },
+    #[error("HTTP request failed: {0}")]
+    Http(String),
+    #[error("Response decode failed: {0}")]
+    Decode(String),
+}
+
+impl SwitchBotError {
+    pub fn api(code: i64, message: impl Into<String>) -> Self {
+        Self::Api {
+            code,
+            message: message.into(),
+        }
+    }
 }
 
 #[derive(Serialize)]

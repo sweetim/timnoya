@@ -1,4 +1,4 @@
-mod database;
+mod db;
 mod error;
 mod handlers;
 mod light_sensor;
@@ -30,7 +30,7 @@ async fn main() {
         .unwrap_or(3000);
 
     let db_path = std::env::var("DB_PATH").unwrap_or_else(|_| "/data/brightness.db".to_string());
-    let pool = database::init_db(&db_path);
+    let pool = db::init_db(&db_path);
 
     let token = std::env::var("SWITCHBOT_TOKEN").expect("SWITCHBOT_TOKEN required");
     let secret = std::env::var("SWITCHBOT_SECRET_KEY").expect("SWITCHBOT_SECRET_KEY required");
@@ -83,5 +83,33 @@ async fn main() {
         .await
         .expect("Failed to bind");
     tracing::info!("API server running at http://localhost:{port}");
-    axum::serve(listener, app).await.expect("Server error");
+
+    axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal())
+        .await
+        .expect("Server error");
+}
+
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        tokio::signal::ctrl_c()
+            .await
+            .expect("Failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+            .expect("Failed to install SIGTERM handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => tracing::info!("Received Ctrl+C, shutting down"),
+        _ = terminate => tracing::info!("Received SIGTERM, shutting down"),
+    }
 }

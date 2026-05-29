@@ -1,4 +1,4 @@
-use crate::database::DbPool;
+use crate::db::DbPool;
 use crate::switchbot::SwitchBotClient;
 
 #[derive(Clone)]

@@ -1,6 +1,8 @@
-use crate::database::{get_switch_state, insert_switch_log, upsert_switch_state, DbPool};
-use crate::switchbot::SwitchBotClient;
 use tracing::{error, info, warn};
+
+use crate::db::switches;
+use crate::db::DbPool;
+use crate::switchbot::SwitchBotClient;
 
 const KITCHEN_LIGHT_DEVICE_NAME: &str = "Kitchen Light";
 const LIGHT_LEVEL_THRESHOLD: i64 = 5;
@@ -11,24 +13,30 @@ pub fn init_switch_states(pool: &DbPool, kitchen_light_device_id: &str) {
         return;
     }
 
-    match get_switch_state(pool, kitchen_light_device_id) {
-        Some(existing) => {
+    match switches::get_switch_state(pool, kitchen_light_device_id) {
+        Ok(Some(existing)) => {
             info!(
                 "Switch state for {} ({}): {}",
                 KITCHEN_LIGHT_DEVICE_NAME, kitchen_light_device_id, existing.power
             );
         }
-        None => {
-            upsert_switch_state(
+        Ok(None) => {
+            if let Err(e) = switches::upsert_switch_state(
                 pool,
                 kitchen_light_device_id,
                 KITCHEN_LIGHT_DEVICE_NAME,
                 "off",
-            );
-            info!(
-                "Initialized switch state for {} ({}) as off",
-                KITCHEN_LIGHT_DEVICE_NAME, kitchen_light_device_id
-            );
+            ) {
+                error!("Failed to init switch state: {e}");
+            } else {
+                info!(
+                    "Initialized switch state for {} ({}) as off",
+                    KITCHEN_LIGHT_DEVICE_NAME, kitchen_light_device_id
+                );
+            }
+        }
+        Err(e) => {
+            error!("Failed to query switch state: {e}");
         }
     }
 }
@@ -53,10 +61,12 @@ pub async fn handle_presence_event(
     let device_id_owned = kitchen_light_device_id.to_string();
     let current_state = tokio::task::spawn_blocking({
         let pool = pool.clone();
-        move || get_switch_state(&pool, &device_id_owned)
+        move || switches::get_switch_state(&pool, &device_id_owned)
     })
     .await
-    .unwrap_or(None);
+    .unwrap_or(Ok(None))
+    .ok()
+    .flatten();
 
     let current_power = current_state
         .as_ref()
@@ -97,13 +107,13 @@ pub async fn handle_presence_event(
                 let device_id = kitchen_light_device_id.to_string();
                 let reason = format!("motion detected, lightLevel={light_level}");
                 tokio::task::spawn_blocking(move || {
-                    upsert_switch_state(
+                    let _ = switches::upsert_switch_state(
                         &pool,
                         &device_id,
                         KITCHEN_LIGHT_DEVICE_NAME,
                         "on",
                     );
-                    insert_switch_log(
+                    let _ = switches::insert_switch_log(
                         &pool,
                         &device_id,
                         KITCHEN_LIGHT_DEVICE_NAME,
@@ -133,13 +143,13 @@ pub async fn handle_presence_event(
                 let pool = pool.clone();
                 let device_id = kitchen_light_device_id.to_string();
                 tokio::task::spawn_blocking(move || {
-                    upsert_switch_state(
+                    let _ = switches::upsert_switch_state(
                         &pool,
                         &device_id,
                         KITCHEN_LIGHT_DEVICE_NAME,
                         "off",
                     );
-                    insert_switch_log(
+                    let _ = switches::insert_switch_log(
                         &pool,
                         &device_id,
                         KITCHEN_LIGHT_DEVICE_NAME,

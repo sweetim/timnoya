@@ -1,18 +1,6 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct SensorReading {
-    pub id: i64,
-    pub timestamp: String,
-    pub device_id: String,
-    pub device_name: String,
-    pub brightness: Option<f64>,
-    pub temperature: Option<i64>,
-    pub humidity: Option<i64>,
-    pub battery: Option<i64>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 pub struct WebhookEvent {
     pub id: i64,
     pub timestamp: String,

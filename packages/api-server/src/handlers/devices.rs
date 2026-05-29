@@ -24,22 +24,14 @@ pub struct DeviceStatusResponse {
 pub async fn get_devices(
     State(state): State<AppState>,
 ) -> Result<Json<DevicesResponse>, AppError> {
-    let devices = state
-        .switchbot
-        .get_devices()
-        .await
-        .map_err(AppError::SwitchBot)?;
+    let devices = state.switchbot.get_devices().await?;
     Ok(Json(DevicesResponse { devices }))
 }
 
 pub async fn get_all_statuses(
     State(state): State<AppState>,
 ) -> Result<Json<StatusesResponse>, AppError> {
-    let statuses = state
-        .switchbot
-        .get_all_device_statuses()
-        .await
-        .map_err(AppError::SwitchBot)?;
+    let statuses = state.switchbot.get_all_device_statuses().await?;
     Ok(Json(StatusesResponse { statuses }))
 }
 
@@ -47,10 +39,6 @@ pub async fn get_device_status(
     State(state): State<AppState>,
     Path(device_id): Path<String>,
 ) -> Result<Json<DeviceStatusResponse>, AppError> {
-    let status = state
-        .switchbot
-        .get_device_status(&device_id)
-        .await
-        .map_err(AppError::SwitchBot)?;
+    let status = state.switchbot.get_device_status(&device_id).await?;
     Ok(Json(DeviceStatusResponse { status }))
 }

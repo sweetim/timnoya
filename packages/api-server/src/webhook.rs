@@ -10,10 +10,16 @@ pub async fn ensure_webhook(pool: DbPool, client: SwitchBotClient) {
 
     match client.get_registered_webhooks().await {
         Ok(webhooks) => {
-            let already_registered = webhooks.iter().any(|u| u == &webhook_url);
-            if already_registered {
+            if webhooks.iter().any(|u| u == &webhook_url) {
                 info!("{webhook_url} already registered, skipping");
                 return;
+            }
+
+            for old_url in &webhooks {
+                info!("Deleting stale webhook: {old_url}");
+                if let Err(e) = client.delete_webhook(old_url).await {
+                    error!("Failed to delete webhook {old_url}: {e}");
+                }
             }
 
             match client.setup_webhook(&webhook_url).await {

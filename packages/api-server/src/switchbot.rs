@@ -345,6 +345,26 @@ impl SwitchBotClient {
         Ok(urls)
     }
 
+    pub async fn delete_webhook(&self, url: &str) -> Result<(), SwitchBotError> {
+        let body = serde_json::json!({
+            "action": "deleteWebhook",
+            "url": url,
+        });
+
+        let resp = self
+            .switchbot_post::<serde_json::Value>("/webhook/deleteWebhook", &body)
+            .await?;
+
+        if resp.status_code != 100 {
+            return Err(SwitchBotError::api(
+                resp.status_code,
+                format!("deleteWebhook({url}): {}", resp.message),
+            ));
+        }
+
+        Ok(())
+    }
+
     pub async fn setup_webhook(&self, url: &str) -> Result<(i64, String), SwitchBotError> {
         let body = serde_json::json!({
             "action": "setupWebhook",

@@ -43,6 +43,7 @@ impl<T> SwitchBotResponse<T> {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct DeviceListBody {
     device_list: Vec<DeviceListEntry>,
     infrared_remote_list: Vec<InfraredRemoteListEntry>,

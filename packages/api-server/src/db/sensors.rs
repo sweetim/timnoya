@@ -3,7 +3,7 @@ use tracing::error;
 
 use super::{get_conn, query_rows, AggregationConfig, DbPool, DbResult};
 use crate::error::AppError;
-use crate::schema::{AggregatedRow, TemperatureRow};
+use crate::schema::{AggregatedRow, PowerRow, TemperatureRow};
 
 pub fn insert_reading(
     pool: &DbPool,
@@ -39,6 +39,24 @@ pub fn insert_sensor_reading(
     .map_err(|e| {
         error!("Failed to insert sensor reading for {device_id}: {e}");
         AppError::Database(format!("Failed to insert sensor reading: {e}"))
+    })?;
+    Ok(())
+}
+
+pub fn insert_power_reading(
+    pool: &DbPool,
+    device_id: &str,
+    device_name: &str,
+    power_watts: f64,
+) -> DbResult<()> {
+    let conn = get_conn(pool)?;
+    conn.execute(
+        "INSERT INTO sensor_readings (device_id, device_name, power_watts) VALUES (?1, ?2, ?3)",
+        params![device_id, device_name, power_watts],
+    )
+    .map_err(|e| {
+        error!("Failed to insert power reading for {device_id}: {e}");
+        AppError::Database(format!("Failed to insert power reading: {e}"))
     })?;
     Ok(())
 }
@@ -131,6 +149,57 @@ pub fn get_temperature_history(pool: &DbPool, mode: &str) -> DbResult<Vec<Temper
                     device_name: row.get(2)?,
                     temperature: row.get::<_, Option<f64>>(3)?.map(|v| (v * 100.0).round() / 100.0),
                     humidity: row.get::<_, Option<f64>>(4)?.map(|v| (v * 100.0).round() / 100.0),
+                })
+            })
+        }
+    }
+}
+
+pub fn get_power_history(pool: &DbPool, mode: &str) -> DbResult<Vec<PowerRow>> {
+    let config = super::aggregation_params(mode)
+        .ok_or_else(|| AppError::Database(format!("Invalid aggregation mode: {mode}")))?;
+    let conn = get_conn(pool)?;
+
+    match config {
+        AggregationConfig::Raw { time_range } => {
+            let sql = format!(
+                "SELECT id, timestamp, device_id, device_name, power_watts \
+                 FROM sensor_readings \
+                 WHERE timestamp >= datetime('now', ?1) \
+                 AND power_watts IS NOT NULL \
+                 ORDER BY timestamp DESC"
+            );
+            query_rows!(conn, &sql, params![time_range], |row| {
+                Ok(PowerRow {
+                    timestamp: row.get(1)?,
+                    device_id: row.get(2)?,
+                    device_name: row.get(3)?,
+                    power_watts: row.get(4)?,
+                })
+            })
+        }
+        AggregationConfig::Grouped {
+            time_range,
+            strftime_format,
+        } => {
+            let sql = format!(
+                "SELECT strftime(?1, timestamp) as timestamp, \
+                        device_id, device_name, \
+                        AVG(power_watts) as power_watts \
+                 FROM sensor_readings \
+                 WHERE timestamp >= datetime('now', ?2) \
+                 AND power_watts IS NOT NULL \
+                 GROUP BY strftime(?1, timestamp), device_id \
+                 ORDER BY timestamp ASC"
+            );
+            query_rows!(conn, &sql, params![strftime_format, time_range], |row| {
+                Ok(PowerRow {
+                    timestamp: row.get(0)?,
+                    device_id: row.get(1)?,
+                    device_name: row.get(2)?,
+                    power_watts: row
+                        .get::<_, Option<f64>>(3)?
+                        .map(|v| (v * 100.0).round() / 100.0),
                 })
             })
         }

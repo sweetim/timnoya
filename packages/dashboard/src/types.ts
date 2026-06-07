@@ -83,3 +83,14 @@ export type SwitchLogEntry = {
 export type SwitchLogResponse = {
   log: SwitchLogEntry[]
 }
+
+export type PowerReading = {
+  timestamp: string
+  device_id: string
+  device_name: string
+  power_watts: number | null
+}
+
+export type PowerHistoryResponse = {
+  history: PowerReading[]
+}

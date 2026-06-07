@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react"
+import { BatteryLevel } from "@/components/BatteryLevel"
 import { DeviceGrid } from "@/components/DeviceGrid"
 import { Header } from "@/components/Header"
+import { PowerUsage } from "@/components/PowerUsage"
 import { SensorReadings } from "@/components/SensorReadings"
 import { SwitchStatus } from "@/components/SwitchStatus"
 import { TemperatureHumidity } from "@/components/TemperatureHumidity"
@@ -11,6 +13,8 @@ import type {
   BrightnessHistoryResponse,
   BrightnessReading,
   DeviceStatus,
+  PowerHistoryResponse,
+  PowerReading,
   StatusResponse,
   SwitchesResponse,
   SwitchLogEntry,
@@ -25,8 +29,10 @@ import "./index.css"
 
 const STORAGE_KEY = "timnoya-view-mode"
 const AGGREGATION_STORAGE_KEY = "timnoya-aggregation"
+const POWER_AGGREGATION_STORAGE_KEY = "timnoya-power-aggregation"
 const TEMP_AGGREGATION_STORAGE_KEY = "timnoya-temp-aggregation"
 const TAB_STORAGE_KEY = "timnoya-tab"
+const BATTERY_AGGREGATION: AggregationMode = "daily"
 
 type Tab = "dashboard" | "webhooks" | "switches"
 
@@ -42,6 +48,15 @@ function loadViewMode(): ViewMode {
 function loadAggregation(): AggregationMode {
   try {
     const stored = localStorage.getItem(AGGREGATION_STORAGE_KEY)
+    if (stored === "raw" || stored === "hourly" || stored === "daily")
+      return stored
+  } catch {}
+  return "hourly"
+}
+
+function loadPowerAggregation(): AggregationMode {
+  try {
+    const stored = localStorage.getItem(POWER_AGGREGATION_STORAGE_KEY)
     if (stored === "raw" || stored === "hourly" || stored === "daily")
       return stored
   } catch {}
@@ -73,19 +88,27 @@ function loadTab(): Tab {
 export function App() {
   const [devices, setDevices] = useState<DeviceStatus[]>([])
   const [readings, setReadings] = useState<BrightnessReading[]>([])
+  const [batteryReadings, setBatteryReadings] = useState<BrightnessReading[]>(
+    [],
+  )
   const [temperatureReadings, setTemperatureReadings] = useState<
     TemperatureReading[]
   >([])
+  const [powerReadings, setPowerReadings] = useState<PowerReading[]>([])
   const [loading, setLoading] = useState(true)
   const [readingsLoading, setReadingsLoading] = useState(true)
+  const [batteryReadingsLoading, setBatteryReadingsLoading] = useState(true)
   const [temperatureReadingsLoading, setTemperatureReadingsLoading] =
     useState(true)
+  const [powerReadingsLoading, setPowerReadingsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [viewMode, setViewMode] = useState<ViewMode>(loadViewMode)
   const [aggregation, setAggregation] =
     useState<AggregationMode>(loadAggregation)
+  const [powerAggregation, setPowerAggregation] =
+    useState<AggregationMode>(loadPowerAggregation)
   const [temperatureAggregation, setTemperatureAggregation] =
     useState<AggregationMode>(loadTemperatureAggregation)
   const [tab, setTab] = useState<Tab>(loadTab)
@@ -126,6 +149,37 @@ export function App() {
       }
     },
     [aggregation],
+  )
+
+  const fetchBatteryReadings = useCallback(async () => {
+    try {
+      setBatteryReadingsLoading(true)
+      const res = await fetch(
+        `/api/sensors/brightness?aggregation=${BATTERY_AGGREGATION}`,
+      )
+      if (!res.ok) return
+      const data: BrightnessHistoryResponse = await res.json()
+      setBatteryReadings(data.history)
+    } catch {
+    } finally {
+      setBatteryReadingsLoading(false)
+    }
+  }, [])
+
+  const fetchPowerReadings = useCallback(
+    async (mode: AggregationMode = powerAggregation) => {
+      try {
+        setPowerReadingsLoading(true)
+        const res = await fetch(`/api/sensors/power?aggregation=${mode}`)
+        if (!res.ok) return
+        const data: PowerHistoryResponse = await res.json()
+        setPowerReadings(data.history)
+      } catch {
+      } finally {
+        setPowerReadingsLoading(false)
+      }
+    },
+    [powerAggregation],
   )
 
   const fetchTemperatureReadings = useCallback(
@@ -186,12 +240,22 @@ export function App() {
   useEffect(() => {
     fetchStatuses()
     fetchReadings()
+    fetchBatteryReadings()
+    fetchPowerReadings()
     fetchTemperatureReadings()
     fetchWebhookEvents()
     fetchSwitches()
     fetchSwitchLog()
     const interval = setInterval(fetchStatuses, 30_000)
     const readingsInterval = setInterval(() => fetchReadings(), 5 * 60_000)
+    const batteryReadingsInterval = setInterval(
+      () => fetchBatteryReadings(),
+      5 * 60_000,
+    )
+    const powerReadingsInterval = setInterval(
+      () => fetchPowerReadings(),
+      5 * 60_000,
+    )
     const temperatureReadingsInterval = setInterval(
       () => fetchTemperatureReadings(),
       5 * 60_000,
@@ -204,6 +268,8 @@ export function App() {
     return () => {
       clearInterval(interval)
       clearInterval(readingsInterval)
+      clearInterval(batteryReadingsInterval)
+      clearInterval(powerReadingsInterval)
       clearInterval(temperatureReadingsInterval)
       clearInterval(webhookInterval)
       clearInterval(switchInterval)
@@ -211,6 +277,8 @@ export function App() {
   }, [
     fetchStatuses,
     fetchReadings,
+    fetchBatteryReadings,
+    fetchPowerReadings,
     fetchTemperatureReadings,
     fetchWebhookEvents,
     fetchSwitches,
@@ -235,6 +303,14 @@ export function App() {
       localStorage.setItem(AGGREGATION_STORAGE_KEY, mode)
     } catch {}
     fetchReadings(mode)
+  }
+
+  const handlePowerAggregationChange = (mode: AggregationMode) => {
+    setPowerAggregation(mode)
+    try {
+      localStorage.setItem(POWER_AGGREGATION_STORAGE_KEY, mode)
+    } catch {}
+    fetchPowerReadings(mode)
   }
 
   const handleTemperatureAggregationChange = (mode: AggregationMode) => {
@@ -305,11 +381,21 @@ export function App() {
               aggregation={temperatureAggregation}
               onAggregationChange={handleTemperatureAggregationChange}
             />
+            <PowerUsage
+              readings={powerReadings}
+              loading={powerReadingsLoading}
+              aggregation={powerAggregation}
+              onAggregationChange={handlePowerAggregationChange}
+            />
             <SensorReadings
               readings={readings}
               loading={readingsLoading}
               aggregation={aggregation}
               onAggregationChange={handleAggregationChange}
+            />
+            <BatteryLevel
+              readings={batteryReadings}
+              loading={batteryReadingsLoading}
             />
           </div>
           <DeviceGrid

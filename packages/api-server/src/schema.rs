@@ -46,3 +46,11 @@ pub struct TemperatureRow {
     pub temperature: Option<f64>,
     pub humidity: Option<f64>,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PowerRow {
+    pub timestamp: String,
+    pub device_id: String,
+    pub device_name: String,
+    pub power_watts: Option<f64>,
+}

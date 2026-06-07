@@ -6,6 +6,7 @@
 - [Bun](https://bun.com) v1.3.12 or later (for dashboard)
 - A SwitchBot account with devices registered
 - SwitchBot API token and secret key (from the SwitchBot app → Profile → Preferences → App Version, tap 10 times to enable developer mode)
+- A TP-Link Tapo account and P110 device for power monitoring
 
 ## Environment Variables
 
@@ -16,6 +17,9 @@
 | `PORT` | api-server | No | API server port (default: 3000) |
 | `DB_PATH` | api-server | No | SQLite DB path (default: `/data/brightness.db`) |
 | `KITCHEN_LIGHT_DEVICE_ID` | api-server | No* | SwitchBot device ID for the Kitchen Light (required for presence automation) |
+| `TAPO_USERNAME` | api-server | No | Tapo account username for P110 power polling; polling is disabled if missing |
+| `TAPO_PASSWORD` | api-server | No | Tapo account password for P110 power polling; polling is disabled if missing |
+| `TAPO_P110_IP` | api-server | No | Local IP address of the Tapo P110; polling is disabled if missing |
 | `RUST_LOG` | api-server | No | Log level (default: `info`) |
 | `API_BASE_URL` | dashboard | No | API server URL for proxy (default: `http://localhost:3000`) |
 
@@ -46,7 +50,7 @@ The API server runs on port 3000, the dashboard on port 3001. The dashboard prox
 
 ## Database Migrations
 
-The API server applies SQLite migrations automatically on startup from `packages/api-server/migrations/0000_init.sql`.
+The API server applies SQLite migrations automatically on startup from `packages/api-server/migrations/`.
 
 ## Docker
 

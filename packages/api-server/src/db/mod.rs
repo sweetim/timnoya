@@ -97,6 +97,10 @@ fn run_migrations(conn: &rusqlite::Connection) {
             "0001_brightness_real_and_indices",
             include_str!("../../migrations/0001_brightness_real_and_indices.sql"),
         ),
+        (
+            "0002_add_power_watts",
+            include_str!("../../migrations/0002_add_power_watts.sql"),
+        ),
     ];
 
     for (name, sql) in migrations {

@@ -3,7 +3,7 @@ import utc from "dayjs/plugin/utc"
 
 dayjs.extend(utc)
 
-import { Eye, EyeOff, Sun } from "lucide-react"
+import { Eye, EyeOff, Zap } from "lucide-react"
 import { useMemo, useState } from "react"
 import {
   CartesianGrid,
@@ -14,7 +14,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts"
-import type { AggregationMode, BrightnessReading } from "@/types"
+import type { AggregationMode, PowerReading } from "@/types"
 
 const DEVICE_COLORS = [
   "#f59e0b",
@@ -35,39 +35,23 @@ function toLocalTimeKey(isoTimestamp: string): string {
   return dayjs.utc(isoTimestamp).local().format("YYYY-MM-DD HH:mm")
 }
 
-function brightnessToNumber(value: string | number | null): number | null {
-  if (value == null) return null
-  const num = Number(value)
-  if (!Number.isNaN(num)) return num
-  const map: Record<string, number> = {
-    bright: 100,
-    clear: 80,
-    dim: 50,
-    dark: 20,
-  }
-  return map[String(value).toLowerCase()] ?? null
-}
-
-type SensorReadingsProps = {
-  readings: BrightnessReading[]
+type PowerUsageProps = {
+  readings: PowerReading[]
   loading: boolean
   aggregation: AggregationMode
   onAggregationChange: (mode: AggregationMode) => void
 }
 
-export function SensorReadings({
+export function PowerUsage({
   readings,
   loading,
   aggregation,
   onAggregationChange,
-}: SensorReadingsProps) {
+}: PowerUsageProps) {
   const devices = useMemo(() => {
     const seen = new Map<string, string>()
-    for (const reading of readings) {
-      if (brightnessToNumber(reading.brightness) === null) continue
-      if (!seen.has(reading.device_id)) {
-        seen.set(reading.device_id, reading.device_name)
-      }
+    for (const r of readings) {
+      if (!seen.has(r.device_id)) seen.set(r.device_id, r.device_name)
     }
     return [...seen.entries()]
   }, [readings])
@@ -87,11 +71,10 @@ export function SensorReadings({
     const byTimestamp = new Map<string, Record<string, number | string>>()
 
     for (const r of readings) {
-      const numVal = brightnessToNumber(r.brightness)
-      if (numVal === null) continue
+      if (r.power_watts == null) continue
       const key = toLocalTimeKey(r.timestamp)
       const existing = byTimestamp.get(key) ?? { time: key }
-      existing[r.device_id] = numVal
+      existing[r.device_id] = r.power_watts
       byTimestamp.set(key, existing)
     }
 
@@ -129,18 +112,18 @@ export function SensorReadings({
     )
   }
 
-  if (chartData.length === 0) return null
+  if (readings.length === 0) return null
 
   return (
     <div className="glass-card rounded-2xl p-5">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Sun
+          <Zap
             className="h-4 w-4 text-yellow-400"
             strokeWidth={2}
           />
           <span className="text-sm font-medium text-slate-300">
-            Sensor Readings
+            Power Usage
           </span>
         </div>
 
@@ -214,6 +197,7 @@ export function SensorReadings({
           <YAxis
             tick={{ fontSize: 10, fill: "#64748b" }}
             stroke="rgba(255,255,255,0.1)"
+            tickFormatter={(v: unknown): string => `${v} W`}
           />
           <Tooltip
             contentStyle={{
@@ -223,6 +207,10 @@ export function SensorReadings({
               fontSize: "12px",
             }}
             labelFormatter={formatTooltipLabel}
+            formatter={(value: unknown, name: unknown): [string, string] => [
+              `${value} W`,
+              String(name ?? "Power"),
+            ]}
           />
           {devices.map(([deviceId, deviceName], idx) => (
             <Line

@@ -3,7 +3,7 @@ import utc from "dayjs/plugin/utc"
 
 dayjs.extend(utc)
 
-import { Eye, EyeOff, Sun } from "lucide-react"
+import { Battery, Eye, EyeOff } from "lucide-react"
 import { useMemo, useState } from "react"
 import {
   CartesianGrid,
@@ -14,7 +14,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts"
-import type { AggregationMode, BrightnessReading } from "@/types"
+import type { BrightnessReading } from "@/types"
 
 const DEVICE_COLORS = [
   "#f59e0b",
@@ -25,46 +25,20 @@ const DEVICE_COLORS = [
   "#06b6d4",
 ]
 
-const AGGREGATION_LABELS: Record<AggregationMode, string> = {
-  raw: "Raw (24h)",
-  hourly: "Hourly (7d)",
-  daily: "Daily (90d)",
+function toLocalDateKey(isoTimestamp: string): string {
+  return dayjs.utc(isoTimestamp).local().format("YYYY-MM-DD")
 }
 
-function toLocalTimeKey(isoTimestamp: string): string {
-  return dayjs.utc(isoTimestamp).local().format("YYYY-MM-DD HH:mm")
-}
-
-function brightnessToNumber(value: string | number | null): number | null {
-  if (value == null) return null
-  const num = Number(value)
-  if (!Number.isNaN(num)) return num
-  const map: Record<string, number> = {
-    bright: 100,
-    clear: 80,
-    dim: 50,
-    dark: 20,
-  }
-  return map[String(value).toLowerCase()] ?? null
-}
-
-type SensorReadingsProps = {
+type BatteryLevelProps = {
   readings: BrightnessReading[]
   loading: boolean
-  aggregation: AggregationMode
-  onAggregationChange: (mode: AggregationMode) => void
 }
 
-export function SensorReadings({
-  readings,
-  loading,
-  aggregation,
-  onAggregationChange,
-}: SensorReadingsProps) {
+export function BatteryLevel({ readings, loading }: BatteryLevelProps) {
   const devices = useMemo(() => {
     const seen = new Map<string, string>()
     for (const reading of readings) {
-      if (brightnessToNumber(reading.brightness) === null) continue
+      if (reading.battery == null) continue
       if (!seen.has(reading.device_id)) {
         seen.set(reading.device_id, reading.device_name)
       }
@@ -86,12 +60,11 @@ export function SensorReadings({
   const chartData = useMemo(() => {
     const byTimestamp = new Map<string, Record<string, number | string>>()
 
-    for (const r of readings) {
-      const numVal = brightnessToNumber(r.brightness)
-      if (numVal === null) continue
-      const key = toLocalTimeKey(r.timestamp)
+    for (const reading of readings) {
+      if (reading.battery == null) continue
+      const key = toLocalDateKey(reading.timestamp)
       const existing = byTimestamp.get(key) ?? { time: key }
-      existing[r.device_id] = numVal
+      existing[reading.device_id] = reading.battery
       byTimestamp.set(key, existing)
     }
 
@@ -100,31 +73,11 @@ export function SensorReadings({
     )
   }, [readings])
 
-  const formatXAxisTick = (t: unknown): string => {
-    const s = String(t ?? "")
-    if (aggregation === "daily") {
-      const parts = s.split(" ")
-      return parts[0] ?? s
-    }
-    const parts = s.split(" ")
-    return parts.length >= 2 ? (parts[1] as string) : s
-  }
-
-  const formatTooltipLabel = (label: unknown): string => {
-    const s = String(label ?? "")
-    if (aggregation === "daily") {
-      const parts = s.split(" ")
-      return parts[0] ?? s
-    }
-    const parts = s.split(" ")
-    return parts.length >= 2 ? `${parts[0]} ${parts[1]}` : s
-  }
-
   if (loading) {
     return (
       <div className="glass-card rounded-2xl p-5">
         <div className="h-6 w-40 rounded shimmer mb-4" />
-        <div className="h-64 rounded shimmer" />
+        <div className="h-52 rounded shimmer" />
       </div>
     )
   }
@@ -135,33 +88,18 @@ export function SensorReadings({
     <div className="glass-card rounded-2xl p-5">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Sun
-            className="h-4 w-4 text-yellow-400"
+          <Battery
+            className="h-4 w-4 text-green-400"
             strokeWidth={2}
           />
           <span className="text-sm font-medium text-slate-300">
-            Sensor Readings
+            Battery Level
           </span>
         </div>
 
-        <div className="flex rounded-lg border border-white/[0.08] overflow-hidden">
-          {(
-            Object.entries(AGGREGATION_LABELS) as [AggregationMode, string][]
-          ).map(([mode, label]) => (
-            <button
-              key={mode}
-              type="button"
-              onClick={() => onAggregationChange(mode)}
-              className={`px-3 py-1 text-xs font-medium transition-all duration-200 ${
-                aggregation === mode
-                  ? "bg-white/[0.1] text-white"
-                  : "text-slate-500 hover:text-slate-300"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <span className="rounded-lg border border-white/[0.08] px-3 py-1 text-xs font-medium text-slate-400">
+          Daily (90d)
+        </span>
       </div>
 
       {devices.length > 1 && (
@@ -198,7 +136,7 @@ export function SensorReadings({
 
       <ResponsiveContainer
         width="100%"
-        height={280}
+        height={220}
       >
         <LineChart data={chartData}>
           <CartesianGrid
@@ -207,13 +145,14 @@ export function SensorReadings({
           />
           <XAxis
             dataKey="time"
-            tickFormatter={formatXAxisTick}
             tick={{ fontSize: 10, fill: "#64748b" }}
             stroke="rgba(255,255,255,0.1)"
           />
           <YAxis
+            domain={[0, 100]}
             tick={{ fontSize: 10, fill: "#64748b" }}
             stroke="rgba(255,255,255,0.1)"
+            tickFormatter={(value: unknown): string => `${value}%`}
           />
           <Tooltip
             contentStyle={{
@@ -222,7 +161,10 @@ export function SensorReadings({
               borderRadius: "8px",
               fontSize: "12px",
             }}
-            labelFormatter={formatTooltipLabel}
+            formatter={(value: unknown, name: unknown): [string, string] => [
+              `${value}%`,
+              String(name ?? "Battery"),
+            ]}
           />
           {devices.map(([deviceId, deviceName], idx) => (
             <Line

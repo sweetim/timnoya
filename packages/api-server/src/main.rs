@@ -7,6 +7,7 @@ mod presence_handler;
 mod schema;
 mod state;
 mod switchbot;
+mod tapo_poller;
 mod webhook;
 
 use axum::routing::{get, post};
@@ -15,7 +16,7 @@ use state::AppState;
 use tower_http::services::ServeDir;
 
 use handlers::{
-    get_all_statuses, get_brightness, get_device_status, get_devices, get_switch_log,
+    get_all_statuses, get_brightness, get_device_status, get_devices, get_power, get_switch_log,
     get_switches, get_temperature, get_webhook_events, post_webhook,
 };
 
@@ -43,6 +44,14 @@ async fn main() {
 
     light_sensor::start_light_sensor_polling(pool.clone(), switchbot_client.clone());
 
+    if let (Ok(tapo_user), Ok(tapo_pass), Ok(tapo_ip)) = (
+        std::env::var("TAPO_USERNAME"),
+        std::env::var("TAPO_PASSWORD"),
+        std::env::var("TAPO_P110_IP"),
+    ) {
+        tapo_poller::start_tapo_power_polling(pool.clone(), tapo_user, tapo_pass, tapo_ip);
+    }
+
     {
         let pool = pool.clone();
         let client = switchbot_client.clone();
@@ -63,6 +72,7 @@ async fn main() {
         .route("/devices/{deviceId}/status", get(get_device_status))
         .route("/sensors/brightness", get(get_brightness))
         .route("/sensors/temperature", get(get_temperature))
+        .route("/sensors/power", get(get_power))
         .route("/webhook/switchbot", post(post_webhook))
         .route("/webhook/events", get(get_webhook_events))
         .route("/switches", get(get_switches))

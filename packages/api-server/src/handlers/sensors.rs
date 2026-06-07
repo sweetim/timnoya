@@ -26,6 +26,16 @@ pub struct TemperatureHistoryResponse {
     pub history: Vec<crate::schema::TemperatureRow>,
 }
 
+#[derive(Serialize)]
+pub struct PowerHistoryResponse {
+    pub history: Vec<crate::schema::PowerRow>,
+}
+
+#[derive(Deserialize)]
+pub struct PowerQuery {
+    pub aggregation: Option<String>,
+}
+
 pub async fn get_brightness(
     State(state): State<AppState>,
     Query(query): Query<BrightnessQuery>,
@@ -56,4 +66,17 @@ pub async fn get_temperature(
     .await
     .map_err(|e| AppError::Database(format!("spawn_blocking failed: {e}")))??;
     Ok(Json(TemperatureHistoryResponse { history }))
+}
+
+pub async fn get_power(
+    State(state): State<AppState>,
+    Query(query): Query<PowerQuery>,
+) -> Result<Json<PowerHistoryResponse>, AppError> {
+    let mode = query.aggregation.as_deref().unwrap_or("raw").to_string();
+    let pool = state.db.clone();
+    let history =
+        tokio::task::spawn_blocking(move || crate::db::sensors::get_power_history(&pool, &mode))
+            .await
+            .map_err(|e| AppError::Database(format!("spawn_blocking failed: {e}")))??;
+    Ok(Json(PowerHistoryResponse { history }))
 }
